@@ -1,0 +1,46 @@
+{
+  "name": "namedArguments",
+  "version": "0.0.0",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "MIT",
+  "keywords": [
+    "pridepack"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "pridepack": "2.6.1",
+    "tslib": "^2.6.3",
+    "typescript": "^5.5.3",
+    "vitest": "^1.6.0"
+  },
+  "scripts": {
+    "prepublishOnly": "pridepack clean && pridepack build",
+    "build": "pridepack build",
+    "type-check": "pridepack check",
+    "clean": "pridepack clean",
+    "watch": "pridepack watch",
+    "start": "pridepack start",
+    "dev": "pridepack dev",
+    "test": "vitest"
+  },
+  "private": false,
+  "description": "Psudo named arguments for JavaScript functions",
+  "repository": {
+    "url": "",
+    "type": "git"
+  },
+  "homepage": "",
+  "bugs": {
+    "url": ""
+  },
+  "author": "Patrick G",
+  "publishConfig": {
+    "access": "public"
+  }
+}

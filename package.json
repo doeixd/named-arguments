@@ -1,5 +1,5 @@
 {
-  "name": "namedArguments",
+  "name": "@doeixd/named-args",
   "version": "0.0.0",
   "files": [
     "dist",
@@ -10,16 +10,25 @@
   },
   "license": "MIT",
   "keywords": [
+    "named arguments",
+    "named args",
+    "keyword args",
+    "keyword arguments",
     "pridepack"
   ],
   "devDependencies": {
     "@types/node": "^20.14.9",
     "pridepack": "2.6.1",
+    "standard-version": "^9.5.0",
     "tslib": "^2.6.3",
     "typescript": "^5.5.3",
     "vitest": "^1.6.0"
   },
   "scripts": {
+    "release": "standard-version && git push --follow-tags origin main",
+    "release:patch": "npm version patch && git push --follow-tags origin main",
+    "release:minor": "npm version minor && git push --follow-tags origin main",
+    "release:major": "npm version major && git push --follow-tags origin main",
     "prepublishOnly": "pridepack clean && pridepack build",
     "build": "pridepack build",
     "type-check": "pridepack check",
@@ -32,14 +41,14 @@
   "private": false,
   "description": "Psudo named arguments for JavaScript functions",
   "repository": {
-    "url": "",
+    "url": "https://github.com/doeixd/named-arguments.git",
     "type": "git"
   },
-  "homepage": "",
+  "homepage": "https://github.com/doeixd/named-arguments#readme",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/doeixd/named-arguments/issues"
   },
-  "author": "Patrick G",
+  "author": "Patrick Glenn",
   "publishConfig": {
     "access": "public"
   }

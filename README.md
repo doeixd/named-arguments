@@ -1,4 +1,4 @@
-# Named Arguments Library
+# Named Arguments
 
 A TypeScript library that brings named arguments and elegant partial application to JavaScript/TypeScript functions.
 
@@ -12,13 +12,13 @@ A TypeScript library that brings named arguments and elegant partial application
 ## Installation
 
 ```bash
-npm install named-args
+npm install @doeixd/named-args
 ```
 
 ## Named Arguments
 
 ```typescript
-import { createNamedArguments } from 'named-args';
+import { createNamedArguments } from '@doeixd/named-args';
 
 // A function with several parameters
 function createUser(firstName: string, lastName: string, age: number, email: string) {
@@ -47,7 +47,7 @@ console.log(user);
 ## Partial Application
 
 ```typescript
-import { createNamedArguments } from 'named-args';
+import { createNamedArguments } from '@doeixd/named-args';
 
 function formatCurrency(amount: number, currency: string, locale: string) {
   return new Intl.NumberFormat(locale, {
@@ -183,7 +183,7 @@ This library takes the functional programming concept of partial application and
 ## Configurable Functions
 
 ```typescript
-import { createNamedArguments, createConfigurableFunction } from 'named-args';
+import { createNamedArguments, createConfigurableFunction } from '@doeixd/named-args';
 
 function processArray<T>(
   array: T[],

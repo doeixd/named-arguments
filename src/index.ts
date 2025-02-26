@@ -77,7 +77,7 @@
  */
 
 export {
-  createNamedArguments,
+  isBrandedArg,
   createConfigurableFunction,
   BrandedArg,
   ArgTypes,
@@ -92,5 +92,5 @@ export {
 } from './named_arguments';
 
 // If you want to provide a default export, you can do so like this:
-import * as namedArguments from './namedArguments';
+import * as namedArguments from './named_arguments';
 export default namedArguments;

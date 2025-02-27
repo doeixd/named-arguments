@@ -1,21 +1,56 @@
-# Named Arguments
+# 🏷️ Named Arguments
 
 A TypeScript library that brings named arguments and elegant partial application to JavaScript/TypeScript functions.
 
-## Features
+## ✨ Features
 
 - **Named Arguments**: Call functions with arguments in any order, making your code more readable and less error-prone
 - **Partial Application**: Easily create functions with some arguments pre-applied
 - **Configurable Functions**: Define reusable function configurations
 - **Type Safety**: Full TypeScript support with type inference
 
-## Installation
+## 📦 Installation
 
 ```bash
 npm install @doeixd/named-args
 ```
 
-## Named Arguments
+## 🧩 Core Concepts
+
+### Argument Branding
+
+Named arguments are "branded" with metadata that allows the library to track which parameter they represent. This branding is what enables calling functions with arguments in any order.
+
+```typescript
+// Under the hood, each named argument is branded with its parameter name
+const emailArg = args.email('john@example.com');
+// Represents: { __brand: 'email', value: 'john@example.com' }
+```
+
+### Function Transformation
+
+The library transforms regular functions into ones that can accept named arguments through a process that:
+1. Analyzes the function's parameter structure
+2. Creates branded argument accessors for each parameter
+3. Returns a new function that can map named arguments back to positional arguments
+
+### Partial Application
+
+Unlike traditional currying which requires parameters in a specific order, this library enables:
+- Applying any subset of arguments in any order
+- Creating multiple layers of partial application
+- Maintaining full type safety throughout the process
+
+### Configurability Pattern
+
+The configurability pattern extends partial application by separating:
+- What is being configured (which parameters)
+- How they're being configured (the values)
+- When they're being applied (the execution)
+
+This creates a powerful API design pattern that promotes reusability and composition.
+
+## 🔄 Named Arguments
 
 ```typescript
 import { createNamedArguments } from '@doeixd/named-args';
@@ -44,7 +79,7 @@ console.log(user);
 // { firstName: 'John', lastName: 'Doe', age: 30, email: 'john.doe@example.com' }
 ```
 
-## Partial Application
+## 🧪 Partial Application
 
 ```typescript
 import { createNamedArguments } from '@doeixd/named-args';
@@ -97,7 +132,7 @@ const userApiGet = getRequest(
 ```
 This allows for a tree of increasingly specialized functions that builds naturally as needed.
 
-## Advanced Use Cases
+## 🛠️ Advanced Use Cases
 
 ### Progressive Configuration Builders
 
@@ -167,7 +202,7 @@ const specificUser = userFixtures.custom({
 });
 ```
 
-## Why This Matters
+## 💡 Why This Matters
 
 These patterns provide several key benefits:
 
@@ -180,7 +215,7 @@ These patterns provide several key benefits:
 This library takes the functional programming concept of partial application and makes it more practical and flexible for real-world TypeScript applications, enabling elegant API designs that would be cumbersome with traditional approaches.
 
 
-## Configurable Functions
+## ⚙️ Configurable Functions
 
 ```typescript
 import { createNamedArguments, createConfigurableFunction } from '@doeixd/named-args';
@@ -233,7 +268,7 @@ console.log(top3Positive); // [10, 8, 6]
 const top5Positive = topPositiveNumbers(args.array(numbers), args.limit(5));
 ```
 
-## Advanced Features
+## 🚀 Advanced Features
 
 ### Rest Parameters
 
@@ -264,7 +299,64 @@ console.log(namedGreet(args.name("World"))); // "Hello, World!"
 console.log(namedGreet(args.name("Friend"), args.greeting("Hi"))); // "Hi, Friend!"
 ```
 
-## Comparison with Alternatives
+## ⚠️ Gotchas
+
+### Type Inference Limitations
+
+When creating named arguments, explicitly providing type parameters improves inference:
+
+```typescript
+// May have incomplete inference without type parameters
+const [args, namedFn] = createNamedArguments(myFunction);
+
+// Better to be explicit for complex functions
+const [args, namedFn] = createNamedArguments<
+  {param1: string, param2: number},
+  typeof myFunction
+>(myFunction);
+```
+
+### Handling Object Parameters
+
+When working with functions that take object parameters, flatten the structure in your type definition:
+
+```typescript
+// Function with object parameter
+function processOptions({ delay, retries }: { delay: number, retries: number }) {
+  // ...
+}
+
+// Flatten the structure in type definition
+const [args, namedProcess] = createNamedArguments<
+  {delay: number, retries: number},
+  typeof processOptions
+>(processOptions);
+
+// Now you can use them directly
+namedProcess(args.delay(1000), args.retries(3));
+```
+
+### Function Overloads
+
+The library may struggle with complex function overloads. Specify a single overload signature when creating named arguments:
+
+```typescript
+// For overloaded functions, specify which overload to use
+const [args, namedFetch] = createNamedArguments<
+  {url: string, options?: RequestInit},
+  (url: string, options?: RequestInit) => Promise<Response>
+>(fetch);
+```
+
+### Performance Considerations
+
+Named arguments add a small overhead compared to direct function calls:
+
+- Each argument is wrapped in a branded object
+- The function performs argument matching at runtime
+- Consider using direct calls in performance-critical paths
+
+## 🔄 Comparison with Alternatives
 
 ### vs Object Parameters
 
@@ -292,7 +384,7 @@ Benefits of our approach:
 - More flexible and composable
 
 
-## API Reference
+## 📚 API Reference
 
 ### `createNamedArguments<A, F>(func)`
 
@@ -391,6 +483,6 @@ A function that accepts branded arguments and returns either the result or a par
 **Type Parameters:**
 - `F`: Original function type
 
-## License
+## 📝 License
 
 MIT

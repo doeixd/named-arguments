@@ -9,7 +9,7 @@
 /**
  * Symbol used to identify branded arguments internally
  */
-const BRAND_SYMBOL = Symbol('namedArg');
+export const BRAND_SYMBOL = Symbol('namedArg');
 
 /**
  * Represents a branded argument with a specific type.
@@ -55,7 +55,7 @@ export type ReturnType<F extends (...args: any[]) => any> =
  * Gets the parameter name for a specific index in a function
  * Used for type mapping
  */
-type GetParameterName<
+export type GetParameterName<
   F extends (...args: any[]) => any,
   Index extends keyof Parameters<F>
 > = keyof ArgumentMap<F>;
@@ -127,7 +127,7 @@ export interface BrandedFunction<F extends (...args: any[]) => any> {
  * Maps function parameter indices to their names
  * This is used for type mapping and is populated during runtime
  */
-type FunctionParameterIndices<F> = {
+export type FunctionParameterIndices<F> = {
   [name: string]: number;
 };
 
@@ -135,7 +135,7 @@ type FunctionParameterIndices<F> = {
  * Maps function parameter names to their indices
  * This is used for type mapping and is populated during runtime
  */
-type FunctionParameterNames<F> = {
+export type FunctionParameterNames<F> = {
   [index: number]: string;
 };
 
@@ -212,7 +212,7 @@ export function createNamedArguments<
  * @param paramInfo Parameter information
  * @returns A branded function
  */
-function createBrandedFunctionWithFlattening<F extends (...args: any[]) => any>(
+export function createBrandedFunctionWithFlattening<F extends (...args: any[]) => any>(
   func: F,
   paramInfo: ArgumentInfo[]
 ): BrandedFunction<F> {
@@ -332,7 +332,7 @@ function createBrandedFunctionWithFlattening<F extends (...args: any[]) => any>(
 /**
  * Creates a partial function with flattening support
  */
-function createPartialFunctionWithFlattening<F extends (...args: any[]) => any>(
+export function createPartialFunctionWithFlattening<F extends (...args: any[]) => any>(
   brandedFunc: BrandedFunction<F>,
   previousArgs: any[],
   appliedArgs: Set<number>,
@@ -441,7 +441,7 @@ function createPartialFunctionWithFlattening<F extends (...args: any[]) => any>(
 /**
  * Creates a partial function with some arguments applied
  */
-function createPartialFunction<F extends (...args: any[]) => any>(
+export function createPartialFunction<F extends (...args: any[]) => any>(
   brandedFunc: BrandedFunction<F>,
   previousArgs: any[],
   appliedArgs: Set<number>,
@@ -512,7 +512,7 @@ function createPartialFunction<F extends (...args: any[]) => any>(
  * Helper function to extract parameter paths from function metadata and arguments
  * This helps identify which properties belong to which object parameters
  */
-function extractParameterPaths(
+export function extractParameterPaths(
   brandedArgs: BrandedArg[]
 ): Record<string, string[]> {
   const result: Record<string, string[]> = {};
@@ -539,7 +539,7 @@ function extractParameterPaths(
 /**
  * Applies default values to arguments
  */
-function applyDefaultValues(args: any[], paramInfo: ArgumentInfo[]): void {
+export function applyDefaultValues(args: any[], paramInfo: ArgumentInfo[]): void {
   for (let i = 0; i < paramInfo.length; i++) {
     const { defaultValue, isRest } = paramInfo[i];
     if (!isRest && args[i] === undefined && defaultValue !== undefined) {
@@ -551,7 +551,7 @@ function applyDefaultValues(args: any[], paramInfo: ArgumentInfo[]): void {
 /**
  * Checks for missing required arguments
  */
-function checkMissingArgs(args: any[], paramInfo: ArgumentInfo[]): void {
+export function checkMissingArgs(args: any[], paramInfo: ArgumentInfo[]): void {
   const missingArgs = paramInfo.filter((arg, index) => 
     !arg.isRest && args[index] === undefined && arg.required
   );
@@ -745,7 +745,7 @@ export function createConfigurableFunction<
 /**
  * Type helper to remove configured arguments from parameter list
  */
-type RemoveConfiguredArgs<
+export type RemoveConfiguredArgs<
   Params extends any[],
   A extends Record<string, any>,
   ConfigArgs extends keyof A
@@ -759,7 +759,7 @@ type RemoveConfiguredArgs<
 /**
  * Maps parameter index to its name (conceptual - determined at runtime)
  */
-type ParameterNameAtIndex<Params, Index extends keyof Params> = keyof Params;
+export type ParameterNameAtIndex<Params, Index extends keyof Params> = keyof Params;
 
 /**
  * Parses function arguments from a function string
@@ -919,5 +919,7 @@ export default {
   parseFunctionArguments,
   splitArguments,
   parseArgument,
-  safeEval
+  safeEval,
+  createPartialFunction,
+  createBrandedFunctionWithFlattening,
 };

@@ -77,20 +77,39 @@
  */
 
 export {
-  isBrandedArg,
+  // Core functionality
+  createNamedArguments,
   createConfigurableFunction,
+  createBuilder,
+  
+  // Type guards
+  isBrandedArg,
+  isBrandedFunction,
+  
+  // Types for named arguments
   BrandedArg,
-  ArgTypes,
+  NamedArg,
+  NamedArgs,
   BrandedFunction,
-  // Re-export the helper functions and types as well
-  parseFunctionArguments,
-  splitArguments,
-  parseArgument,
-  safeEval,
-  ArgumentInfo,
-  isBrandedFunction
-} from './named_arguments';
+  NamedArgsConfig,
+  ParameterInfo,
+  
+  // Types for partial application
+  AppliedNames,
+  ExtractArgName,
+  ExtractBaseParamName,
+  ExtractParameterNames,
+  FilterBrandedArg,
+  FilterBrandedArgs,
+  IsNameApplied,
+  AreAllRequiredParamsProvided,
+  PartialApplicationReturnType,
+  
+  // Utility types
+  Parameters,
+  ReturnType
+} from './named_args.og';
 
-// If you want to provide a default export, you can do so like this:
-import * as namedArguments from './named_arguments';
+// Default export for easier importing
+import * as namedArguments from './named_args.og';
 export default namedArguments;

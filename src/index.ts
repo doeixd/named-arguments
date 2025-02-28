@@ -108,8 +108,8 @@ export {
   // Utility types
   Parameters,
   ReturnType
-} from './named_args.og';
+} from './named_args';
 
 // Default export for easier importing
-import * as namedArguments from './named_args.og';
+import * as namedArguments from './named_args';
 export default namedArguments;

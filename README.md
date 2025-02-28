@@ -1,4 +1,4 @@
-# 🏷️ Named Arguments 2.0
+# 🏷️ Named Arguments 
 A TypeScript library that brings named arguments and robust, type-safe partial application to JavaScript/TypeScript functions.
 The library now features enhanced type safety with compile-time checking against parameter duplication and precise return type inference based on parameter requirements.
 A TypeScript library that brings named arguments and elegant partial application to JavaScript/TypeScript functions.

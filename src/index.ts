@@ -76,39 +76,10 @@
  * ```
  */
 
-export {
-  // Core functionality
-  createNamedArguments,
-  createConfigurableFunction,
-  createBuilder,
-  
-  // Type guards
-  isBrandedArg,
-  isBrandedFunction,
-  
-  // Types for named arguments
-  BrandedArg,
-  NamedArg,
-  NamedArgs,
-  BrandedFunction,
-  NamedArgsConfig,
-  ParameterInfo,
-  
-  // Types for partial application
-  AppliedNames,
-  ExtractArgName,
-  ExtractBaseParamName,
-  ExtractParameterNames,
-  FilterBrandedArg,
-  FilterBrandedArgs,
-  IsNameApplied,
-  AreAllRequiredParamsProvided,
-  PartialApplicationReturnType,
-  
-  // Utility types
-  Parameters,
-  ReturnType
-} from './named_args';
+export * from './named_args';
+export * from './utils'
+
+
 
 // Default export for easier importing
 import * as namedArguments from './named_args';

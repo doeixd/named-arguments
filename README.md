@@ -10,12 +10,40 @@ The library features enhanced type safety with compile-time checking against par
 - **Nested Property Access**: Access deeply nested properties with dot notation
 - **Composability Utilities**: Transform, group, validate, combine, and pipeline arguments
 
+```typescript
+import { createNamedArguments } from '@doeixd/named-args';
+
+// A function with several parameters
+function createUser(firstName: string, lastName: string, age: number, email: string) {
+  return { firstName, lastName, age, email };
+}
+
+// Create named arguments for the function
+// The type parameter specifies the argument names matching the function parameters
+const [args, namedCreateUser] = createNamedArguments<
+  typeof createUser,
+  {firstName: string, lastName: string, age: number, email: string}
+>(createUser);
+
+// Use named arguments in any order
+const user = namedCreateUser(
+  args.email('john.doe@example.com'),
+  args.firstName('John'),
+  args.age(30),
+  args.lastName('Doe')
+);
+
+console.log(user);
+// { firstName: 'John', lastName: 'Doe', age: 30, email: 'john.doe@example.com' }
+```
+
 
 ## 📦 Installation
 
 ```bash
 npm install @doeixd/named-args
 ```
+
 
 ## 📑 Table of Contents
 
@@ -59,133 +87,9 @@ npm install @doeixd/named-args
   - [Composability Utilities](#composability-utilities)
 - [License](#-license)
 
-## 🧩 Core Concepts
 
-### Argument Branding
 
-Named arguments are "branded" with metadata that allows the library to track which parameter they represent. This branding is what enables calling functions with arguments in any order.
 
-```typescript
-// Under the hood, each named argument is branded with its parameter name
-const emailArg = args.email('john@example.com');
-// Represents: { [BRAND_SYMBOL]: { name: 'email', value: 'john@example.com' } }
-
-// This allows calling functions with arguments in any order
-namedCreateUser(
-  args.email('john@example.com'),
-  args.firstName('John'),
-  // TypeScript knows which parameter each argument represents
-);
-```
-
-### Function Transformation
-
-The library transforms regular functions into ones that can accept named arguments through a process that:
-1. Analyzes the function's parameter structure
-2. Creates branded argument accessors for each parameter
-3. Returns a new function that can map named arguments back to positional arguments
-
-```typescript
-// Original function
-function sendEmail(to: string, subject: string, body: string) {
-  // Implementation
-}
-
-// Transform into a function accepting named arguments
-const [args, namedSendEmail] = createNamedArguments(sendEmail);
-
-// Now we can call it with named arguments in any order
-namedSendEmail(
-  args.subject('Meeting reminder'),
-  args.to('colleague@example.com'),
-  args.body('Don\'t forget our meeting tomorrow.')
-);
-```
-
-### Partial Application
-
-Unlike traditional currying which requires parameters in a specific order, this library enables:
-- Applying any subset of arguments in any order
-- Creating multiple layers of partial application
-- Maintaining full type safety throughout the process
-
-```typescript
-// Create named arguments for a function
-function formatNumber(value: number, locale: string, style: string, currency?: string) {
-  return new Intl.NumberFormat(locale, { style, currency }).format(value);
-}
-
-const [args, namedFormat] = createNamedArguments(formatNumber);
-
-// Create a partial application - note any subset of args can be applied
-const formatUSD = namedFormat.partial(
-  args.style('currency'),
-  args.currency('USD')
-);
-
-// Create another layer of specialization
-const formatUSPrice = formatUSD.partial(args.locale('en-US'));
-
-// Finally apply the remaining argument
-console.log(formatUSPrice(args.value(42.99)));  // "$42.99"
-```
-
-### Configurability Pattern
-
-The configurability pattern extends partial application by separating:
-- What is being configured (which parameters)
-- How they're being configured (the values)
-- When they're being applied (the execution)
-
-This creates a powerful API design pattern that promotes reusability and composition.
-
-```typescript
-// Create a configurable function
-const configureFetch = createConfigurableFunction([args, namedFetch]);
-
-// Define a configuration for JSON API requests
-const jsonRequest = configureFetch(args => {
-  args.headers({
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  });
-});
-
-// Use the configured function with remaining parameters
-const response = await jsonRequest(
-  args.url('https://api.example.com/users'),
-  args.method('GET')
-);
-```
-
-## 🔄 Named Arguments
-
-```typescript
-import { createNamedArguments } from '@doeixd/named-args';
-
-// A function with several parameters
-function createUser(firstName: string, lastName: string, age: number, email: string) {
-  return { firstName, lastName, age, email };
-}
-
-// Create named arguments for the function
-// The type parameter specifies the argument names matching the function parameters
-const [args, namedCreateUser] = createNamedArguments<
-  typeof createUser,
-  {firstName: string, lastName: string, age: number, email: string}
->(createUser);
-
-// Use named arguments in any order
-const user = namedCreateUser(
-  args.email('john.doe@example.com'),
-  args.firstName('John'),
-  args.age(30),
-  args.lastName('Doe')
-);
-
-console.log(user);
-// { firstName: 'John', lastName: 'Doe', age: 30, email: 'john.doe@example.com' }
-```
 
 ## 🧪 Partial Application
 
@@ -701,6 +605,105 @@ These patterns provide several key benefits:
 7. **Transformability**: Process and validate arguments with pipelines and transformers
 
 This library takes the functional programming concept of partial application and makes it more practical and flexible for real-world TypeScript applications, enabling elegant API designs that would be cumbersome with traditional approaches.
+
+## 🧩 Core Concepts
+
+### Argument Branding
+
+Named arguments are "branded" with metadata that allows the library to track which parameter they represent. This branding is what enables calling functions with arguments in any order.
+
+```typescript
+// Under the hood, each named argument is branded with its parameter name
+const emailArg = args.email('john@example.com');
+// Represents: { [BRAND_SYMBOL]: { name: 'email', value: 'john@example.com' } }
+
+// This allows calling functions with arguments in any order
+namedCreateUser(
+  args.email('john@example.com'),
+  args.firstName('John'),
+  // TypeScript knows which parameter each argument represents
+);
+```
+
+### Function Transformation
+
+The library transforms regular functions into ones that can accept named arguments through a process that:
+1. Analyzes the function's parameter structure
+2. Creates branded argument accessors for each parameter
+3. Returns a new function that can map named arguments back to positional arguments
+
+```typescript
+// Original function
+function sendEmail(to: string, subject: string, body: string) {
+  // Implementation
+}
+
+// Transform into a function accepting named arguments
+const [args, namedSendEmail] = createNamedArguments(sendEmail);
+
+// Now we can call it with named arguments in any order
+namedSendEmail(
+  args.subject('Meeting reminder'),
+  args.to('colleague@example.com'),
+  args.body('Don\'t forget our meeting tomorrow.')
+);
+```
+
+### Partial Application
+
+Unlike traditional currying which requires parameters in a specific order, this library enables:
+- Applying any subset of arguments in any order
+- Creating multiple layers of partial application
+- Maintaining full type safety throughout the process
+
+```typescript
+// Create named arguments for a function
+function formatNumber(value: number, locale: string, style: string, currency?: string) {
+  return new Intl.NumberFormat(locale, { style, currency }).format(value);
+}
+
+const [args, namedFormat] = createNamedArguments(formatNumber);
+
+// Create a partial application - note any subset of args can be applied
+const formatUSD = namedFormat.partial(
+  args.style('currency'),
+  args.currency('USD')
+);
+
+// Create another layer of specialization
+const formatUSPrice = formatUSD.partial(args.locale('en-US'));
+
+// Finally apply the remaining argument
+console.log(formatUSPrice(args.value(42.99)));  // "$42.99"
+```
+
+### Configurability Pattern
+
+The configurability pattern extends partial application by separating:
+- What is being configured (which parameters)
+- How they're being configured (the values)
+- When they're being applied (the execution)
+
+This creates a powerful API design pattern that promotes reusability and composition.
+
+```typescript
+// Create a configurable function
+const configureFetch = createConfigurableFunction([args, namedFetch]);
+
+// Define a configuration for JSON API requests
+const jsonRequest = configureFetch(args => {
+  args.headers({
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  });
+});
+
+// Use the configured function with remaining parameters
+const response = await jsonRequest(
+  args.url('https://api.example.com/users'),
+  args.method('GET')
+);
+```
 
 ## ⚠️ Gotchas
 

@@ -10,6 +10,7 @@ The library features enhanced type safety with compile-time checking against par
 - **Nested Property Access**: Access deeply nested properties with dot notation
 - **Composability Utilities**: Transform, group, validate, combine, and pipeline arguments
 
+### Quick Example
 ```typescript
 import { createNamedArguments } from '@doeixd/named-args';
 
@@ -36,7 +37,7 @@ const user = namedCreateUser(
 console.log(user);
 // { firstName: 'John', lastName: 'Doe', age: 30, email: 'john.doe@example.com' }
 ```
-
+<br>
 
 ## 📦 Installation
 

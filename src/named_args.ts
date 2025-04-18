@@ -2,7 +2,7 @@
  * Robust Named Arguments Library
  *
  * This library provides a type-safe way to call functions with named parameters,
- * supporting type inference, customizable flattening, and type-safe partial application.
+ * supporting type inference and type-safe partial application.
  *
  * Features:
  * - Named arguments: Call functions with arguments in any order
@@ -12,45 +12,88 @@
  * - Object parameter updates: Safely update previously applied object parameters with reApply
  * - Builder pattern: Accumulate arguments and execute the function
  * - Configurable functions: Preset some arguments via a setup function
+ * - Nested property access: Access nested properties of object parameters using dot notation
  *
  * @packageDocumentation
  */
 
-const BRAND_SYMBOL = Symbol('namedArg');
-
 /**
- * Configuration options for named arguments functionality.
+ * Creates named arguments for individual properties of an object parameter.
+ * This is a simpler alternative to createNestedArgs for when you only need
+ * access to top-level properties of an object parameter.
  *
- * @interface NamedArgsConfig
- * @property {Record<string, Record<string, string>>} [flattenAs] - Configuration for flattening nested object properties.
- * Keys are parameter names, values are mappings from property names to flattened parameter names.
+ * @template T - The object type whose properties will be accessed
+ * @param {string} paramName - The name of the parameter in the function
+ * @returns {Record<string, NamedArg<any>>} An object with named arguments for each property
  *
  * @example
  * ```typescript
- * // Create named arguments with flattened properties
- * const [args, namedFunc] = createNamedArguments(
- *   function(user: { name: string, email: string }) { ... },
- *   undefined, // No parameter info needed
- *   { 
- *     flattenAs: {
- *       user: {
- *         name: 'userName',    // Access user.name as args.userName()
- *         email: 'userEmail'   // Access user.email as args.userEmail()
- *       }
- *     }
- *   }
- * );
- *
- * // Now you can use the flattened properties
- * namedFunc(
- *   args.userName('John'),
- *   args.userEmail('john@example.com')
+ * // A function with an options object parameter
+ * function configureServer(options: {
+ *   port: number;
+ *   host: string;
+ *   ssl: boolean;
+ * }) {
+ *   // Implementation
+ * }
+ * 
+ * // Create property-level named args for the options object
+ * const optionArgs = createObjectPropertyArgs<typeof options>('options');
+ * 
+ * // Use the property-level named args
+ * const server = namedConfigureServer(
+ *   optionArgs.port(8080),
+ *   optionArgs.host('localhost'),
+ *   optionArgs.ssl(true)
  * );
  * ```
  */
-export interface NamedArgsConfig {
-  flattenAs?: Record<string, Record<string, string>>;
-}
+export function createObjectPropertyArgs<T extends Record<string, any>>(
+  paramName: string
+): Record<string, NamedArg<any>> {
+  const result: Record<string, any> = {};
+  
+  // Create a proxy for simple property access only (no deep nesting)
+  return new Proxy(result, {
+    get(target, prop) {
+      if (typeof prop !== 'string' || prop === 'then' || prop === 'toJSON') {
+        return undefined;
+      }
+      
+      // If this property accessor has already been created, return it
+      if (prop in target) {
+        return target[prop];
+      }
+      
+      // Create a named argument function for this property
+      const propPath = `${paramName}.${prop}`;
+      const argFunc = function(value: any) {
+        return { [BRAND_SYMBOL]: { name: propPath, value } } as BrandedArg<any, string>;
+      };
+      
+      // Store it for future use
+      target[prop] = argFunc;
+      return argFunc;
+    }
+  });
+}/**
+ * Type for nested property access with any depth.
+ * This allows accessing deeply nested properties using dot notation while
+ * maintaining type safety throughout the object tree.
+ * 
+ * @template T - The type of the object whose nested properties will be accessed
+ * @template Path - The base path as a string literal (used internally for recursive types)
+ */
+export type NestedArgs<T extends Record<string, any>, Path extends string = ""> = {
+  [K in keyof T]: K extends string
+    ? T[K] extends Record<string, any>
+      ? NestedArgs<T[K], Path extends "" ? K : `${Path}.${K}`> & 
+        ((value: T[K]) => BrandedArg<T[K], Path extends "" ? K : `${Path}.${K}`>)
+      : (value: T[K]) => BrandedArg<T[K], Path extends "" ? K : `${Path}.${K}`>
+    : never;
+};
+
+export const BRAND_SYMBOL = Symbol('namedArg');
 
 /**
  * Represents a branded argument with a name and value. This is an internal type used to
@@ -76,6 +119,33 @@ export type BrandedArg<T = unknown, N extends string = string> = {
     value: T;
   };
 };
+
+/**
+ * Configuration options for named arguments functionality.
+ *
+ * @property {Record<string, Record<string, string>>} [flattenAs] - Configuration for flattening nested object properties.
+ *   Keys are parameter names, values are mappings from property names to flattened parameter names.
+ *
+ * @example
+ * ```typescript
+ * const [args, namedFunc] = createNamedArguments(
+ *   function(user: { name: string; email: string }) { return user; },
+ *   undefined,
+ *   {
+ *     flattenAs: {
+ *       user: {
+ *         name: "userName",  // Access user.name as args.userName()
+ *         email: "userEmail" // Access user.email as args.userEmail()
+ *       }
+ *     }
+ *   }
+ * );
+ * namedFunc(args.userName("John"), args.userEmail("john@example.com"));
+ * ```
+ */
+export interface NamedArgsConfig {
+  flattenAs?: Record<string, Record<string, string>>;
+}
 
 /** Type utility to extract function parameters */
 export type Parameters<F extends (...args: any[]) => any> = F extends (...args: infer P) => any ? P : never;
@@ -379,7 +449,6 @@ export type ParamsToObject<P extends any[]> = {
  *
  * @param {F} func - The function to transform
  * @param {ParameterInfo[]} [parameters] - Optional parameter metadata
- * @param {NamedArgsConfig} [config={}] - Configuration for flattening
  * @returns {[NamedArgs<A>, BrandedFunction<F>]} A tuple containing: 
  *   - Named argument accessors (with properties matching the type A)
  *   - A branded function that accepts named arguments
@@ -414,7 +483,6 @@ export type ParamsToObject<P extends any[]> = {
  * );
  * ```
  */
-// Update the createNamedArguments function signature
 export function createNamedArguments<
   F extends (...args: any[]) => any,
   // Default A maps parameter *indices* (as strings '0', '1', ...) to types.
@@ -433,30 +501,32 @@ export function createNamedArguments<
 
   // Create argument types
   for (const param of paramInfo) {
-    const paramType = ({} as A)[param.name];
+    const paramName = param.name;
+    if (!paramName) continue;
+
+    const paramType = ({} as A)[paramName];
     if (paramType && typeof paramType === 'object' && !param.isRest) {
       // Create a callable object for nested properties
       const nestedObject: any = {};
       
       // Add property accessors
       for (const prop in paramType) {
-        nestedObject[prop] = createNamedArg(`${param.name}.${prop}`);
+        nestedObject[prop] = createNamedArg(`${paramName}.${prop}`);
       }
       
       // Make the object itself callable
       const callableNestedObject = Object.assign(
-        (value: any) => ({ [BRAND_SYMBOL]: { name: param.name, value } } as BrandedArg<any, string>),
+        (value: any) => ({ [BRAND_SYMBOL]: { name: paramName, value } } as BrandedArg<any, string>),
         nestedObject
       );
       
       // Add it to argument types
-      (argTypes as any)[param.name] = callableNestedObject;
+      (argTypes as any)[paramName] = callableNestedObject;
     } else {
-      (argTypes as any)[param.name] = createNamedArg(param.name);
+      (argTypes as any)[paramName] = createNamedArg(paramName);
     }
   }
 
-  // Add flattened accessors if specified
   if (config.flattenAs) {
     for (const param in config.flattenAs) {
       for (const prop in config.flattenAs[param]) {
@@ -466,7 +536,7 @@ export function createNamedArguments<
     }
   }
 
-  const brandedFunc = createBrandedFunction(func, paramInfo, config.flattenAs || {}, []);
+  const brandedFunc = createBrandedFunction(func, paramInfo, []);
   return [argTypes, brandedFunc];
 }
 
@@ -493,7 +563,6 @@ function inferParameters(func: Function): ParameterInfo[] {
  * @template F - Type of the original function
  * @param {F} func - The original function to wrap
  * @param {ParameterInfo[]} paramInfo - Parameter metadata
- * @param {Record<string, Record<string, string>>} flattenAs - Configuration for flattening nested properties
  * @param {string[]} appliedParams - Array of parameter names that have already been applied
  * @returns {BrandedFunction<F>} A branded function that can accept named arguments
  *
@@ -502,17 +571,8 @@ function inferParameters(func: Function): ParameterInfo[] {
 function createBrandedFunction<F extends (...args: any[]) => any>(
   func: F,
   paramInfo: ParameterInfo[],
-  flattenAs: Record<string, Record<string, string>> = {},
   appliedParams: string[] = []
 ): BrandedFunction<F> {
-  const flattenMap: Record<string, { param: string; prop: string }> = {};
-  
-  for (const param in flattenAs) {
-    for (const prop in flattenAs[param]) {
-      flattenMap[flattenAs[param][prop]] = { param, prop };
-    }
-  }
-
   // Create appliedArgsMap to track argument values by parameter name
   const appliedArgsMap: Record<string, any> = {};
 
@@ -541,22 +601,6 @@ function createBrandedFunction<F extends (...args: any[]) => any>(
         }
       } else if (appliedParams.includes(name)) {
         console.warn(`Parameter ${name} has already been applied, ignoring`);
-        continue;
-      }
-
-      // Handle flattened arguments
-      if (flattenMap[name]) {
-        const { param, prop } = flattenMap[name];
-        const paramIndex = paramInfo.findIndex(p => p.name === param);
-        
-        if (paramIndex !== -1) {
-          objectProps[param] = objectProps[param] || {};
-          objectProps[param][prop] = value;
-          appliedParamIndices.add(paramIndex);
-          if (!newAppliedParams.includes(param)) {
-            newAppliedParams.push(param);
-          }
-        }
         continue;
       }
 
@@ -619,7 +663,7 @@ function createBrandedFunction<F extends (...args: any[]) => any>(
     
     // If not all required args provided, return a partial function
     if (appliedRequiredCount < requiredCount) {
-      return createBrandedFunction(func, paramInfo, flattenAs, newAppliedParams);
+      return createBrandedFunction(func, paramInfo, newAppliedParams);
     }
 
     // Apply default values
@@ -715,7 +759,7 @@ function createBrandedFunction<F extends (...args: any[]) => any>(
       tempArgs.push(newArg);
       
       // Create a new function from scratch
-      const newFunc = createBrandedFunction(func, paramInfo, flattenAs, []);
+      const newFunc = createBrandedFunction(func, paramInfo, []);
       
       // Apply all the args to create a properly configured function
       return newFunc(...tempArgs) as unknown as BrandedFunction<F, typeof appliedParams>;
@@ -1017,10 +1061,106 @@ if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
   };
 }
 
+/**
+ * Creates named arguments for deeply nested object properties with full type safety.
+ * This specialized primitive allows accessing nested properties at any depth.
+ *
+ * @template T - The type of the object whose nested properties will be accessed
+ * @param {string} basePath - The base path for all properties (usually the parameter name)
+ * @returns {NestedArgs<T>} A proxy object that provides type-safe access to all nested properties
+ *
+ * @example
+ * ```typescript
+ * // Function with a deeply nested object parameter
+ * function setupApplication(config: {
+ *   server: {
+ *     port: number;
+ *     host: string;
+ *     ssl: {
+ *       enabled: boolean;
+ *       cert: string;
+ *     };
+ *   };
+ *   database: {
+ *     url: string;
+ *     credentials: {
+ *       username: string;
+ *       password: string;
+ *     };
+ *   };
+ * }) {
+ *   // Implementation
+ * }
+ *
+ * // Create named arguments
+ * const [args, namedSetup] = createNamedArguments(setupApplication);
+ *
+ * // Create nested arguments for the config parameter
+ * type ConfigType = Parameters<typeof setupApplication>[0];
+ * const config = createNestedArgs<ConfigType>('config');
+ *
+ * // Use the nested arguments with convenient dot notation
+ * const app = namedSetup(
+ *   config.server.port(8080),
+ *   config.server.ssl.enabled(true),
+ *   config.database.credentials.username('admin')
+ * );
+ * ```
+ */
+export function createNestedArgs<T extends Record<string, any>>(
+  basePath: string
+): NestedArgs<T> {
+  const createNestedProxy = (path: string): any => {
+    const handler: ProxyHandler<any> = {
+      get(target, prop) {
+        if (typeof prop !== 'string' || prop === 'then' || prop === 'toJSON') {
+          return undefined;
+        }
+        
+        const fullPath = path ? `${path}.${prop}` : prop;
+        
+        // Lazily create and cache the nested property
+        if (!(prop in target)) {
+          // Create a function that produces a branded argument
+          const argFunc = function(value: any) {
+            return { [BRAND_SYMBOL]: { name: fullPath, value } } as BrandedArg<any, string>;
+          };
+          
+          // Create a new proxy for further nesting
+          const nestedProxy = createNestedProxy(fullPath);
+          
+          // Combine the function and proxy capabilities
+          const combined = new Proxy(argFunc, {
+            get(funcTarget, funcProp) {
+              if (typeof funcProp === 'string' && 
+                  funcProp !== 'then' && 
+                  funcProp !== 'toJSON' && 
+                  !(funcProp in Function.prototype)) {
+                return nestedProxy[funcProp];
+              }
+              return Reflect.get(funcTarget, funcProp);
+            }
+          });
+          
+          target[prop] = combined;
+        }
+        
+        return target[prop];
+      }
+    };
+    
+    return new Proxy({}, handler);
+  };
+  
+  return createNestedProxy(basePath) as NestedArgs<T>;
+}
+
 export default {
   createNamedArguments,
   createConfigurableFunction,
   createBuilder,
+  createObjectPropertyArgs,
+  createNestedArgs,
   isBrandedArg,
   isBrandedFunction,
 };

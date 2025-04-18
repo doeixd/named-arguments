@@ -184,19 +184,79 @@ export type FlattenedProps<
   }
 }[keyof FlattenConfig][keyof FlattenConfig[keyof FlattenConfig]];
 
-// Then modify the NamedArgs type to include flattened properties
+
+/**
+ * Utility to create an intersection from a union of objects.
+ */
+export type UnionToIntersection<U> =
+  (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
+
+/**
+ * Generates the type map for flattened arguments.
+ * Keys are the flattened names, values are the corresponding NamedArg functions.
+ */
+export type FlattenedArgsType<
+  A extends Record<string, any>,
+  FlattenConfig extends Record<string, Record<string, string>> | undefined
+> = FlattenConfig extends Record<string, Record<string, string>>
+  // Use UnionToIntersection to merge the objects generated for each flattened arg
+  ? UnionToIntersection<{
+      // Iterate through the top-level parameter names in the config (e.g., "requestOptions")
+      [ParamName in keyof FlattenConfig]: {
+        // Iterate through the source property paths in the config (e.g., "headers.contentType", "timeout")
+        [SourcePath in keyof FlattenConfig[ParamName]]:
+          // Ensure the mapped flattened name is a string
+          FlattenConfig[ParamName][SourcePath] extends string ? {
+            // The key is the *Flattened Name* (e.g., "contentType")
+            [FlatName in FlattenConfig[ParamName][SourcePath]]:
+              // The value is NamedArg<TypeAtPath, FlattenedName>
+              NamedArg<
+                // Get the type from the original structure 'A' using the full path
+                GetValueByPath<A, `${string & ParamName}.${string & SourcePath}`>,
+                // The name/brand for the NamedArg is the Flattened Name
+                FlatName
+              >
+          } : never; // Should not happen if config is correct
+      // Create a union of the { [FlatName]: NamedArg<...> } objects for the current ParamName
+      }[keyof FlattenConfig[ParamName]];
+    // Create a union of those unions for all ParamNames
+    }[keyof FlattenConfig]>
+  // If no FlattenConfig is provided, return an empty object type
+  : {};
+
+/** Helper type to make complex intersections readable */
+type Prettify<T> = {
+  [K in keyof T]: T[K];
+} & {};
+
+// export type NamedArgs<
+//   T extends Record<string, any>,
+//   Config extends NamedArgsConfig = {}
+// > = {
+//   [K in keyof T]-?: T[K] extends Record<string, any>
+//     ? CallableObject<T[K], string & K>
+//     : NamedArg<T[K], string & K>;
+// } & (Config extends { flattenAs: infer F }
+//   ? F extends Record<string, Record<string, string>>
+//     ? { [K in keyof FlattenedProps<T, F>]: FlattenedProps<T, F>[K] }
+//     : {}
+//   : {})
+
 export type NamedArgs<
   T extends Record<string, any>,
   Config extends NamedArgsConfig = {}
-> = {
-  [K in keyof T]-?: T[K] extends Record<string, any>
-    ? CallableObject<T[K], string & K>
-    : NamedArg<T[K], string & K>;
-} & (Config extends { flattenAs: infer F }
-  ? F extends Record<string, Record<string, string>>
-    ? { [K in keyof FlattenedProps<T, F>]: FlattenedProps<T, F>[K] }
-    : {}
-  : {});
+> = Prettify<
+  // Base arguments (e.g., args.requestOptions)
+  {
+    [K in keyof T]-?: T[K] extends Record<string, any>
+      ? // Handle nested objects - make them callable and allow property access
+        CallableObject<T[K], string & K>
+      : // Handle non-object parameters
+        NamedArg<T[K], string & K>;
+  }
+  // Merge with flattened arguments (e.g., args.contentType)
+  & FlattenedArgsType<T, Config['flattenAs']>
+>;
 
 /** Metadata for function parameters */
 export interface ParameterInfo {
@@ -436,10 +496,37 @@ export interface BrandedFunction<
   ): BrandedFunction<F, AppliedParams>;
 }
 
+// Helper type to map parameter indices (as strings) to their types,
+// filtering out standard array properties. Needed for default A type.
 export type ParamsToObject<P extends any[]> = {
   // Map only numeric indices K
   [K in keyof P as K extends `${number}` ? K : never]: P[K];
 };
+
+/**
+ * Utility type to recursively get the type of a property at a given path.
+ * Handles nested properties and optional chaining (returns undefined if path is invalid).
+ * Returns 'unknown' if path is definitively invalid relative to the structure.
+ */
+type GetValueByPath<T, P extends string> =
+  // Handle null/undefined input type
+  T extends undefined | null ? unknown :
+  // Check if path has dots
+  P extends `${infer Head}.${infer Tail}`
+    // Check if Head is a valid key in T
+    ? Head extends keyof T
+      // Recurse with the nested property type and the rest of the path
+      // Use NonNullable to simulate drilling down into potentially optional properties
+      ? GetValueByPath<NonNullable<T[Head]>, Tail>
+      // Head is not a key, path is invalid
+      : unknown
+    // No more dots, P is the final key
+    : P extends keyof T
+      // Return the type of the property
+      ? T[P]
+      // Final key P is not found
+      : unknown;
+
 
 /**
  * Creates named arguments and a branded function for a given function.
@@ -490,14 +577,14 @@ export function createNamedArguments<
   // For name-based type safety and better DX, explicitly provide the A type parameter,
   // e.g., createNamedArguments<typeof myFunc, { name: string; age: number }>(myFunc)
   A extends Record<string, any> = ParamsToObject<Parameters<F>>,
-  Config extends NamedArgsConfig = {}
+  // Config extends NamedArgsConfig = {}
 >(
   func: F,
   parameters?: ParameterInfo[],
-  config: Config = {} as Config
-): [NamedArgs<A, Config>, BrandedFunction<F>] {
+  // config: Config = {} as Config
+): [NamedArgs<A>, BrandedFunction<F>] {
   const paramInfo = parameters || inferParameters(func);
-  const argTypes = {} as NamedArgs<A, Config>;
+  const argTypes = {} as NamedArgs<A>;
 
   // Create argument types
   for (const param of paramInfo) {
@@ -527,14 +614,14 @@ export function createNamedArguments<
     }
   }
 
-  if (config.flattenAs) {
-    for (const param in config.flattenAs) {
-      for (const prop in config.flattenAs[param]) {
-        const flatName = config.flattenAs[param][prop];
-        (argTypes as any)[flatName] = createNamedArg(`${param}.${prop}`);
-      }
-    }
-  }
+  // if (config.flattenAs) {
+  //   for (const param in config.flattenAs) {
+  //     for (const prop in config.flattenAs[param]) {
+  //       const flatName = config.flattenAs[param][prop];
+  //       (argTypes as any)[flatName] = createNamedArg(`${param}.${prop}`);
+  //     }
+  //   }
+  // }
 
   const brandedFunc = createBrandedFunction(func, paramInfo, []);
   return [argTypes, brandedFunc];

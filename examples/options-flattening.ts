@@ -61,6 +61,25 @@ const [args, namedRequest] = createNamedArguments<
     method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     requestOptions: RequestOptions;
     logOptions?: LogOptions;
+  },
+  {
+    flattenAs: {
+      requestOptions: {
+        'headers.contentType': 'contentType';
+        'headers.accept': 'accept';
+        'headers.authorization': 'authorization';
+        'timeout': 'timeout';
+        'cache': 'useCache';
+        'retries.count': 'retryCount';
+        'retries.delay': 'retryDelay';
+      };
+      logOptions: {
+        'level': 'logLevel';
+        'format': 'logFormat';
+        'destination': 'logDestination';
+        'filename': 'logFilename';
+      };
+    };
   }
 >(
   makeRequest,
@@ -71,31 +90,27 @@ const [args, namedRequest] = createNamedArguments<
     { name: 'logOptions', required: false }
   ],
   {
-    // Flatten some commonly used properties for easier access
     flattenAs: {
       requestOptions: {
-        // Flattening nested headers
         'headers.contentType': 'contentType',
         'headers.accept': 'accept',
         'headers.authorization': 'authorization',
-        
-        // Flattening direct properties
         'timeout': 'timeout',
         'cache': 'useCache',
-        
-        // Flattening nested retry settings
         'retries.count': 'retryCount',
-        'retries.delay': 'retryDelay',
+        'retries.delay': 'retryDelay'
       },
       logOptions: {
         'level': 'logLevel',
         'format': 'logFormat',
         'destination': 'logDestination',
-        'filename': 'logFilename',
+        'filename': 'logFilename'
       }
     }
   }
 );
+
+
 
 // Example 1: Basic usage with full options
 console.log('Example 1: Full call with complex objects');
@@ -112,6 +127,7 @@ const result1 = namedRequest(
   })
 );
 console.log(result1);
+
 
 // Example 2: Using flattened properties
 console.log('\nExample 2: Using flattened properties');

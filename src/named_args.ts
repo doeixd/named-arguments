@@ -92,11 +92,41 @@ export type CallableObject<T, N extends string> =
   & { [K in keyof T]?: K extends string ? NamedArg<T[K], `${N}.${K}`> : never };
 
 /** Structure of named arguments, reflecting the type <A> */
-export type NamedArgs<T extends Record<string, any>> = {
+// First, add a type utility to extract flattened properties
+export type FlattenedProps<
+  T extends Record<string, any>,
+  FlattenConfig extends { [P in keyof T]?: { [key: string]: string } }
+> = {
+  [P in keyof FlattenConfig]: {
+    [K in keyof FlattenConfig[P]]: K extends `${infer Base}.${infer Prop}`
+      ? P extends keyof T
+        ? Base extends keyof T[P]
+          ? Prop extends keyof T[P][Base]
+            ? NamedArg<T[P][Base][Prop], string & FlattenConfig[P][K]>
+            : never
+          : never
+        : never
+      : P extends keyof T
+        ? K extends keyof T[P]
+          ? NamedArg<T[P][K], string & FlattenConfig[P][K]>
+          : never
+        : never;
+  }
+}[keyof FlattenConfig][keyof FlattenConfig[keyof FlattenConfig]];
+
+// Then modify the NamedArgs type to include flattened properties
+export type NamedArgs<
+  T extends Record<string, any>,
+  Config extends NamedArgsConfig = {}
+> = {
   [K in keyof T]-?: T[K] extends Record<string, any>
     ? CallableObject<T[K], string & K>
     : NamedArg<T[K], string & K>;
-};
+} & (Config extends { flattenAs: infer F }
+  ? F extends Record<string, Record<string, string>>
+    ? { [K in keyof FlattenedProps<T, F>]: FlattenedProps<T, F>[K] }
+    : {}
+  : {});
 
 /** Metadata for function parameters */
 export interface ParameterInfo {
@@ -336,6 +366,11 @@ export interface BrandedFunction<
   ): BrandedFunction<F, AppliedParams>;
 }
 
+export type ParamsToObject<P extends any[]> = {
+  // Map only numeric indices K
+  [K in keyof P as K extends `${number}` ? K : never]: P[K];
+};
+
 /**
  * Creates named arguments and a branded function for a given function.
  *
@@ -379,16 +414,22 @@ export interface BrandedFunction<
  * );
  * ```
  */
+// Update the createNamedArguments function signature
 export function createNamedArguments<
   F extends (...args: any[]) => any,
-  A extends Record<string, any> = { [K in keyof Parameters<F>]: Parameters<F>[K] }
+  // Default A maps parameter *indices* (as strings '0', '1', ...) to types.
+  // Parameter *names* cannot be reliably inferred at the type level from F alone.
+  // For name-based type safety and better DX, explicitly provide the A type parameter,
+  // e.g., createNamedArguments<typeof myFunc, { name: string; age: number }>(myFunc)
+  A extends Record<string, any> = ParamsToObject<Parameters<F>>,
+  Config extends NamedArgsConfig = {}
 >(
   func: F,
   parameters?: ParameterInfo[],
-  config: NamedArgsConfig = {}
-): [NamedArgs<A>, BrandedFunction<F>] {
+  config: Config = {} as Config
+): [NamedArgs<A, Config>, BrandedFunction<F>] {
   const paramInfo = parameters || inferParameters(func);
-  const argTypes = {} as NamedArgs<A>;
+  const argTypes = {} as NamedArgs<A, Config>;
 
   // Create argument types
   for (const param of paramInfo) {

@@ -99,7 +99,7 @@ const authPostClient = postClient.partial(
 
 
 // Add retries using reApply
-const retryAuthPostClient = authPostClient.reApply("options", (prev) => ({
+const retryAuthPostClient = authPostClient.reApply(args.options, (prev) => ({
   ...prev,
   retryCount: 3,
   retryDelay: 1000

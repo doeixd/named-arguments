@@ -772,7 +772,7 @@ Creates a custom `args` object and wrapper function based on an explicit specifi
 
 ---
 
-### **Composability Utilities Module (`@doeixd/named-args/utils`)**
+### Composability Utilities 
 
 Provides functions to transform or combine argument creators (`NamedArg` functions).
 

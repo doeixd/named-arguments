@@ -1,17 +1,34 @@
-# 🏷️ Named Arguments 
-A TypeScript library that brings named arguments and robust, type-safe partial application to JavaScript/TypeScript functions.
-The library features enhanced type safety with compile-time checking against parameter duplication and precise return type inference based on parameter requirements.
+# 🏷️ Named Arguments
 
-- **Type-Safe Partial Application**: Prevents reapplying the same parameter multiple times
-- **Precise Return Types**: TypeScript distinguishes between partial and complete application
-- **Parameter Tracking**: Maintains type safety across multiple partial applications
-- **Smart Builder Pattern**: Track which parameters have been applied during building
-- **Object Parameter Updates**: Safely update previously applied object parameters with reApply
-- **Nested Property Access**: Access deeply nested properties with dot notation
-- **Composability Utilities**: Transform, group, validate, combine, and pipeline arguments
+[![NPM Version][npm-image]][npm-url]
+[![License][license-image]][license-url]
+[![Downloads][downloads-image]][downloads-url]
 
-### Quick Example
-```typescript
+This library brings **type-safe named arguments and flexible partial application** to your functions, improving code readability, maintainability, and developer experience.
+
+## ✨ Why Use This Library?
+
+-   **Clarity & Readability:** Call functions with arguments by name (`args.userId(...)`) instead of relying on order. Code becomes self-documenting.
+-   **Type Safety:** Catch errors at compile time for missing required arguments, incorrect types, or accidentally reapplying the same argument during partial application.
+-   **Refactor with Confidence:** Changing the order of parameters in your original function doesn't break existing calls using named arguments.
+-   **Flexible Partial Application:** Apply arguments in any order, incrementally building specialized functions without the constraints of traditional currying.
+-   **Simplified Configuration:** Handle functions with many parameters (especially optional ones) more elegantly than large option objects.
+-   **Enhanced Composability:** Utilities for building, configuring, and mapping arguments enable powerful patterns.
+
+## 📦 Installation
+
+```bash
+npm install @doeixd/named-args
+# or
+yarn add @doeixd/named-args
+# or
+pnpm add @doeixd/named-args
+# or
+bun install @doeixd/named-args
+```
+
+## 🚀 Quick Example
+```ts
 import { createNamedArguments } from '@doeixd/named-args';
 
 // A function with several parameters
@@ -37,931 +54,921 @@ const user = namedCreateUser(
 console.log(user);
 // { firstName: 'John', lastName: 'Doe', age: 30, email: 'john.doe@example.com' }
 ```
-<br>
-
-## 📦 Installation
-
-```bash
-npm install @doeixd/named-args
-```
 
 
 ## 📑 Table of Contents
 
-- [Installation](#-installation)
-- [Core Concepts](#-core-concepts)
-  - [Argument Branding](#argument-branding)
-  - [Function Transformation](#function-transformation)
-  - [Partial Application](#partial-application)
-  - [Configurability Pattern](#configurability-pattern)
-- [Named Arguments](#-named-arguments)
-- [Partial Application](#-partial-application-1)
-  - [Precise Return Types](#precise-return-types)
-  - [Type-Safe Partial Application](#type-safe-partial-application)
-  - [Multi-Stage Partial Application](#multi-stage-partial-application)
-  - [Updating Object Parameters with reApply](#updating-object-parameters-with-reapply)
-- [Builder Pattern](#-builder-pattern)
-- [Nested Property Access](#-nested-property-access)
-- [Object Property Arguments](#-object-property-arguments)
-- [Composability Utilities](#-composability-utilities)
-  - [Argument Transformations](#argument-transformations)
-  - [Argument Groups](#argument-groups)
-  - [Argument Pipelines](#argument-pipelines)
-  - [Combined Arguments](#combined-arguments)
-  - [Default Values](#default-values)
-  - [Argument Validation](#argument-validation)
-- [Advanced Use Cases](#-advanced-use-cases)
-  - [Type-Safe Function Composition](#type-safe-function-composition)
-  - [Dependency Injection Pattern](#dependency-injection-pattern)
-- [Configurable Functions](#-configurable-functions)
-- [Advanced Features](#-advanced-features)
-  - [Rest Parameters](#rest-parameters)
-  - [Default Values](#default-values-1)
-- [Why This Matters](#-why-this-matters)
-- [Gotchas](#-gotchas)
-  - [Type Inference Limitations](#type-inference-limitations)
-  - [Function Overloads](#function-overloads)
-  - [Performance Considerations](#performance-considerations)
-- [Example: Building a Chart API](#example-building-a-chart-api)
-- [API Reference](#-api-reference)
-  - [Core Library](#core-library)
-  - [Composability Utilities](#composability-utilities)
-- [License](#-license)
-
-
-
-
-
-## 🧪 Partial Application
-
-### Precise Return Types
-The library provides precise return type inference based on parameter requirements:
-```typescript
-function greet(name: string, greeting?: string): string {
-  return `${greeting || "Hello"}, ${name}!`;
-}
-const [args, namedGreet] = createNamedArguments<
-  typeof greet,
-  { name: string; greeting?: string }
->(
-  greet,
-  [
-    { name: "name", required: true },
-    { name: "greeting", required: false }
-  ]
-);
-// TypeScript knows this returns a string (not a function)
-// because all required parameters are provided
-const greeting = namedGreet(args.name("World")); // Type: string
-// TypeScript knows this returns a partially applied function
-// because no required parameters are provided yet
-const partialGreet = namedGreet.partial(); // Type: BrandedFunction<...>
-```
-This makes it easier to work with partially applied functions, as you no longer need to manually check whether the result is a value or a function.
-### Type-Safe Partial Application
-The library provides enhanced type-safety for partial application:
-```typescript
-import { createNamedArguments } from "@doeixd/named-args";
-function add(a: number, b: number, c: number): number {
-  return a + b + c;
-}
-// Create named arguments with type information
-const [args, namedAdd] = createNamedArguments<
-  typeof add,
-  { a: number; b: number; c: number }
->(add);
-// Create a partial application with "a"
-const addWithA = namedAdd.partial(args.a(5));
-// TypeScript prevents you from applying "a" again
-// This would cause a compile-time error:
-// const error = addWithA(args.a(10)); // Error: Parameter "a" already applied
-// You can apply other parameters
-const addWithAB = addWithA.partial(args.b(10));
-// Complete the application
-const result = addWithAB(args.c(15)); // 30
-```
-Unlike other partial application libraries, this one maintains full type-safety during each step, making it impossible to accidentally provide the same parameter multiple times.
-
-```typescript
-import { createNamedArguments } from '@doeixd/named-args';
-
-function formatCurrency(amount: number, currency: string, locale: string) {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency
-  }).format(amount);
-}
-
-// Create named arguments
-const [args, namedFormat] = createNamedArguments(formatCurrency);
-
-// Create a partial application for USD in US English
-const formatUSD = namedFormat(
-  args.currency('USD'),
-  args.locale('en-US')
-);
-
-// Use the partial application with remaining arguments
-const price = formatUSD(args.amount(1234.56));
-console.log(price); // "$1,234.56"
-```
-Unlike traditional currying which requires parameters in a specific order, this approach lets you apply arguments in any order, at any time.
-
-### Multi-Stage Partial Application
-
-You can create multiple layers of specialization, building on previous partial applications:
-
-```typescript
-// First stage: Create base API request with common headers
-const apiRequest = namedRequest(
-  args.headers({
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'X-API-Key': 'your-api-key'
-  })
-);
-
-// Second stage: Create method-specific requests
-const getRequest = apiRequest(args.method('GET'));
-const postRequest = apiRequest(args.method('POST'));
-
-// Third stage: Domain-specific requests
-const userApiGet = getRequest(
-  args.url('https://api.example.com/users'),
-  args.timeout(5000)
-);
-```
-This allows for a tree of increasingly specialized functions that builds naturally as needed.
-
-### Updating Object Parameters with reApply
-The library provides the `reApply` method, which allows you to safely update previously applied object parameters without reapplying the entire parameter:
-```typescript
-// Start with a base client configuration
-const baseClient = namedRequest.partial(
-  args.method('POST'),
-  args.options({
-    headers: {
-      contentType: 'application/json',
-      accept: 'application/json'
-    }
-  }),
-  args.logOptions({
-    level: 'info',
-    format: 'json'
-  })
-);
-// Add authentication by updating only the headers property
-const authClient = baseClient.reApply(args.options, (prev) => ({
-  ...prev,
-  headers: {
-    ...prev.headers,
-    authorization: 'Bearer token123'
-  }
-}));
-// Add retry logic to the same options object
-const retryClient = authClient.reApply(args.options, (prev) => ({
-  ...prev,
-  retries: {
-    count: 3,
-    delay: 1000
-  },
-  cache: false
-}));
-// Update logging options separately
-const debugClient = retryClient.reApply(args.logOptions, (prev) => ({
-  ...prev,
-  level: 'debug',
-  destination: 'console'
-}));
-// Make the final request with all accumulated options
-const result = debugClient(args.url('https://api.example.com/data'));
-```
-The `reApply` method:
-1. Takes the name of a previously applied parameter
-2. Accepts an updater function that receives the current value and returns a new value
-3. Maintains type safety, only allowing updates to parameters that have been applied
-4. Returns a new branded function with the updated parameter value
-
-## 🏗️ Builder Pattern
-The library provides a builder pattern that maintains type-safety:
-```typescript
-import { createNamedArguments, createBuilder } from "@doeixd/named-args";
-function configureApp(port: number, host: string, database: DbConfig, logging?: boolean) {
-  // Create app configuration
-  return { port, host, database, logging };
-}
-const [args, namedConfig] = createNamedArguments(configureApp);
-// Create a builder
-const appBuilder = createBuilder(namedConfig);
-// Use the builder pattern to construct the configuration
-// The builder tracks which parameters have been applied and prevents duplicates
-const devConfig = appBuilder
-  .with(args.port(3000))
-  .with(args.host("localhost"))
-  .with(args.database({ url: "localhost:27017", name: "devdb" }))
-  .execute();
-// Attempting to set the same parameter twice would
-// result in both compile-time errors and runtime warnings
-```
-The builder pattern is particularly useful for creating complex objects with many parameters, while maintaining full type-safety.
-
-## 🔍 Nested Property Access
-
-The library now provides a specialized primitive for working with deeply nested object properties:
-
-```typescript
-import { createNamedArguments, createNestedArgs } from '@doeixd/named-args';
-
-// Function with a complex nested configuration object
-function setupApplication(config: {
-  server: {
-    port: number;
-    host: string;
-    ssl: {
-      enabled: boolean;
-      cert: string;
-    };
-  };
-  database: {
-    url: string;
-    credentials: {
-      username: string;
-      password: string;
-    };
-  };
-}) {
-  // Implementation
-}
-
-// Create named arguments
-const [args, namedSetup] = createNamedArguments(setupApplication);
-
-// Create nested arguments for the config parameter
-type ConfigType = Parameters<typeof setupApplication>[0];
-const config = createNestedArgs<ConfigType>('config');
-
-// Use the nested arguments with convenient dot notation
-const app = namedSetup(
-  config.server.port(8080),
-  config.server.ssl.enabled(true),
-  config.database.credentials.username('admin')
-);
-```
-
-This approach provides several benefits:
-- Full TypeScript type safety at any nesting depth
-- Intuitive dot notation for accessing nested properties
-- Seamless integration with partial application
-- No need to manually construct property paths
-
-## 🧩 Object Property Arguments
-
-This provides a simpler alternative to `createNestedArgs` when you only need to access top-level properties of an object parameter:
-
-```typescript
-import { createNamedArguments, createObjectPropertyArgs } from '@doeixd/named-args';
-
-// Function with an options object parameter
-function configureServer(options: {
-  port: number;
-  host: string;
-  ssl: boolean;
-  maxConnections: number;
-}) {
-  // Implementation
-}
-
-// Create named arguments for the function
-const [args, namedConfig] = createNamedArguments(configureServer);
-
-// Create property-level named args for the options object
-type OptionsType = Parameters<typeof configureServer>[0];
-const optionArgs = createObjectPropertyArgs<OptionsType>('options');
-
-// Use the property-level named args
-const server = namedConfig(
-  optionArgs.port(8080),
-  optionArgs.host('localhost'),
-  optionArgs.ssl(true),
-  optionArgs.maxConnections(100)
-);
-```
-
-Benefits compared to `createNestedArgs`:
-- Simpler implementation with less overhead
-- Focused on the common case of accessing top-level properties
-- Provides the same type safety for first-level properties
-- Works seamlessly with partial application and other library features# Named Arguments
-
-## 🧩 Composability Utilities
-
-The library now includes utilities for transforming and combining arguments in powerful ways:
-
-### Argument Transformations
-
-```typescript
-import { transformArg } from '@doeixd/named-args/composability';
-
-// Create a transformer that converts string dates to Date objects
-const timestampArg = transformArg(args.timestamp, (isoString: string) => new Date(isoString));
-
-// Now we can pass strings instead of Date objects
-const result = namedProcess(
-  timestampArg('2023-01-15T12:30:00Z'),
-  args.value(42)
-);
-```
-
-### Argument Groups
-
-```typescript
-import { createArgGroup } from '@doeixd/named-args/composability';
-
-// Create an argument group for connection parameters
-const connectionGroup = createArgGroup({
-  host: args.host,
-  port: args.port,
-  credentials: createArgGroup({
-    username: args.credentials.username,
-    password: args.credentials.password
-  })
-});
-
-// Apply all connection settings with one object
-const db = namedConnect(
-  ...connectionGroup({
-    host: 'localhost',
-    port: 5432,
-    credentials: {
-      username: 'admin',
-      password: 'secret123'
-    }
-  })
-);
-```
-
-### Argument Pipelines
-
-```typescript
-import { pipeline } from '@doeixd/named-args/composability';
-
-// Create a pipeline for processing amounts
-const amountPipeline = pipeline(args.amount)
-  .map((value: string) => parseFloat(value))
-  .map(value => Math.abs(value))
-  .map(value => Math.round(value * 100) / 100);
-
-// Process a value through the pipeline
-const transaction = namedProcess(
-  amountPipeline("42.567"),  // Converts to 42.57
-  args.timestamp(new Date()),
-  args.description("Office supplies")
-);
-```
-
-### Combined Arguments
-
-```typescript
-import { combineArgs } from '@doeixd/named-args/composability';
-
-// Calculate area automatically from width and height
-const autoArea = combineArgs(
-  args.area,
-  ([width, height]) => width * height,
-  args.width,
-  args.height
-);
-
-// Apply the combined argument
-const rectangle = namedCalculate(
-  args.width(5),
-  args.height(10),
-  ...autoArea()  // Automatically sets area = 50
-);
-```
-
-### Default Values
-
-```typescript
-import { withDefault } from '@doeixd/named-args/composability';
-
-// Create a default value for the greeting
-const defaultGreeting = withDefault(args.greeting, "Hi");
-
-// Use it when you want the default value
-const result = namedGreet(
-  args.name("World"),
-  ...defaultGreeting()  // Uses "Hi" as the default
-);
-```
-
-### Argument Validation
-
-```typescript
-import { withValidation } from '@doeixd/named-args/composability';
-
-// Create validated arguments
-const validatedAmount = withValidation(
-  args.amount,
-  (value) => value > 0 && value <= 10000,
-  "Amount must be between 0 and 10,000"
-);
-
-// Will throw an error if validation fails
-const transfer = namedTransfer(
-  validatedAmount(500),
-  args.accountId("ACC1234567890")
-);
-```
-
-## 🛠️ Advanced Use Cases
-### Type-Safe Function Composition
-The enhanced type system enables safer function composition patterns:
-```typescript
-// Create a pipeline of transformations with type-safe partial application
-const processData = pipe(
-  fetchData.partial(args.endpoint("/api/users")),
-  filterData.partial(args.predicate(user => user.active)),
-  sortData.partial(args.key("lastName")),
-  paginateData.partial(args.pageSize(10))
-);
-// Each step maintains type safety and prevents parameter duplication
-const results = processData(args.page(2));
-```
-### Dependency Injection Pattern
-Create flexible service configurations with partial application:
-```typescript
-// Define a service that requires multiple dependencies
-function createUserService(db: Database, logger: Logger, cache: Cache) {
-  return {
-    findUser: (id: string) => { /* ... */ },
-    createUser: (data: UserData) => { /* ... */ }
-  };
-}
-const [args, namedService] = createNamedArguments(createUserService);
-// Create partially configured services for different environments
-const testService = namedService.partial(
-  args.db(testDb),
-  args.logger(mockLogger)
-);
-const prodService = namedService.partial(
-  args.db(prodDb),
-  args.logger(prodLogger)
-);
-// Later, complete the configuration
-const localTestService = testService(args.cache(localCache));
-const remoteTestService = testService(args.cache(redisCache));
-```
-
-## ⚙️ Configurable Functions
-
-```typescript
-import { createNamedArguments, createConfigurableFunction } from '@doeixd/named-args';
-
-function processArray<T>(
-  array: T[],
-  filterFn: (item: T) => boolean,
-  sortFn?: (a: T, b: T) => number,
-  limit?: number
-): T[] {
-  let result = array.filter(filterFn);
-  
-  if (sortFn) {
-    result = result.sort(sortFn);
-  }
-  
-  if (limit !== undefined && limit >= 0) {
-    result = result.slice(0, limit);
-  }
-  
-  return result;
-}
-
-// Create named arguments with explicit parameter names that match the function
-const [args, namedProcess] = createNamedArguments<
-  typeof processArray,
-  {array: T[], filterFn: (item: T) => boolean, sortFn?: (a: T, b: T) => number, limit?: number}
->(processArray);
-
-// Create a configurable function
-const configureArrayProcessor = createConfigurableFunction([args, namedProcess]);
-
-// Configure a processor for top N positive numbers
-const topPositiveNumbers = configureArrayProcessor(args => {
-  // Filter for positive numbers
-  args.filterFn(num => num > 0);
-  
-  // Sort in descending order
-  args.sortFn((a, b) => b - a);
-});
-
-// The resulting function accepts the remaining parameters
-const numbers = [-5, 10, 3, -2, 8, 1, -1, 6];
-const top3Positive = topPositiveNumbers(args.array(numbers), args.limit(3));
-
-console.log(top3Positive); // [10, 8, 6]
-```
-
-## 🚀 Advanced Features
-
-### Rest Parameters
-
-The library supports rest parameters:
-
-```typescript
-function sum(first: number, ...rest: number[]) {
-  return [first, ...rest].reduce((a, b) => a + b, 0);
-}
-
-const [args, namedSum] = createNamedArguments(sum);
-
-console.log(namedSum(args.first(1), args.rest(2, 3, 4))); // 10
-```
-
-### Default Values
-
-Default parameter values are respected:
-
-```typescript
-function greet(name: string, greeting = "Hello") {
-  return `${greeting}, ${name}!`;
-}
-
-const [args, namedGreet] = createNamedArguments(greet);
-
-console.log(namedGreet(args.name("World"))); // "Hello, World!"
-console.log(namedGreet(args.name("Friend"), args.greeting("Hi"))); // "Hi, Friend!"
-```
-
-## 💡 Why This Matters
-
-These patterns provide several key benefits:
-
-1. **Composability**: Functions can be specialized incrementally
-2. **Reusability**: Partially applied functions create reusable building blocks
-3. **Separation of Concerns**: Configure different aspects of a function independently
-4. **Type Safety**: Maintain full TypeScript type checking at every stage
-5. **Readability**: Self-documenting code that clearly shows which arguments are being used
-6. **Flexibility**: Work with complex nested structures in an intuitive way
-7. **Transformability**: Process and validate arguments with pipelines and transformers
-
-This library takes the functional programming concept of partial application and makes it more practical and flexible for real-world TypeScript applications, enabling elegant API designs that would be cumbersome with traditional approaches.
+-   [Installation](#-installation)
+-   [Quick Example](#-quick-example)
+-   [Core Concepts](#-core-concepts)
+    -   [Argument Branding](#argument-branding)
+    -   [Function Transformation](#function-transformation)
+-   [Core Usage (`createNamedArguments`)](#core-usage-createnamedarguments)
+    -   [Partial Application](#-partial-application)
+    -   [Updating Object Parameters (`reApply`)](#updating-object-parameters-reapply)
+-   [Handling Nested Objects](#handling-nested-objects)
+    -   [First-Level Access (Built-in)](#first-level-access-built-in)
+    -   [Deep Access (`createNestedArgs`)](#deep-access-createnestedargs)
+    -   [Property-Level Access (`createObjectPropertyArgs`)](#property-level-access-createobjectpropertyargs)
+-   [Advanced Patterns](#advanced-patterns)
+    -   [Builder Pattern (`createBuilder`)](#-builder-pattern)
+    -   [Configurable Functions (`createConfigurableFunction`)](#-configurable-functions)
+    -   [Mapped Arguments (`createMappedNamedArguments`)](#mapped-arguments-createmappednamedarguments)
+-   [Advanced Features](#-advanced-features)
+    -   [Rest Parameters](#rest-parameters)
+    -   [Default Values](#default-values)
+    -   [Parameter Metadata](#parameter-metadata)
+-   [Use Cases & Examples](#use-cases--examples)
+-   [Comparison with Options Objects](#comparison-with-options-objects)
+-   [Gotchas & Troubleshooting](#gotchas--troubleshooting)
+-   [API Reference](#-api-reference)
+-   [Compatibility](#compatibility)
+-   [Contributing](#contributing)
+-   [License](#-license)
 
 ## 🧩 Core Concepts
 
 ### Argument Branding
 
-Named arguments are "branded" with metadata that allows the library to track which parameter they represent. This branding is what enables calling functions with arguments in any order.
-
-```typescript
-// Under the hood, each named argument is branded with its parameter name
-const emailArg = args.email('john@example.com');
-// Represents: { [BRAND_SYMBOL]: { name: 'email', value: 'john@example.com' } }
-
-// This allows calling functions with arguments in any order
-namedCreateUser(
-  args.email('john@example.com'),
-  args.firstName('John'),
-  // TypeScript knows which parameter each argument represents
-);
-```
+Each argument created via the `args` object (e.g., `args.name('Alice')`) is internally "branded" using a `Symbol`. This brand associates the provided value (`'Alice'`) with the intended parameter name (`'name'`). This allows the wrapped function to correctly place arguments regardless of their call order.
 
 ### Function Transformation
 
-The library transforms regular functions into ones that can accept named arguments through a process that:
-1. Analyzes the function's parameter structure
-2. Creates branded argument accessors for each parameter
-3. Returns a new function that can map named arguments back to positional arguments
+`createNamedArguments` takes your original function `F` and returns:
+1.  `args`: An object with typed methods (`NamedArg` or `CallableObject`) for creating branded arguments (e.g., `args.name: (v: string) => BrandedArg<string, 'name'>`). The structure of `args` mirrors the type `A` you provide.
+2.  `func`: A `BrandedFunction<F>` wrapper around your original function. This wrapper accepts the branded arguments, reconstructs the correct positional argument list based on brands and parameter info, and then calls your original function `F`. It also provides methods like `.partial` and `.reApply`.
+
+## Core Usage (`createNamedArguments`)
+
+This is the primary way to enable named arguments for your functions.
 
 ```typescript
-// Original function
-function sendEmail(to: string, subject: string, body: string) {
-  // Implementation
+import { createNamedArguments } from '@doeixd/named-args';
+
+function format(value: number, prefix = '$', precision = 2): string {
+    return `${prefix}${value.toFixed(precision)}`;
 }
+// Define the argument structure type
+type FormatArgs = { value: number; prefix?: string; precision?: number };
 
-// Transform into a function accepting named arguments
-const [args, namedSendEmail] = createNamedArguments(sendEmail);
+// Create args and the named function wrapper
+const [args, namedFormat] = createNamedArguments<typeof format, FormatArgs>(
+  format,
+  // Optional but recommended: ParameterInfo for accurate required/optional/default handling
+  [
+    { name: 'value', required: true },
+    { name: 'prefix', required: false, defaultValue: '$' },
+    { name: 'precision', required: false, defaultValue: 2 }
+  ]
+);
 
-// Now we can call it with named arguments in any order
-namedSendEmail(
-  args.subject('Meeting reminder'),
-  args.to('colleague@example.com'),
-  args.body('Don\'t forget our meeting tomorrow.')
+// Call the wrapper function with branded arguments
+const formatted = namedFormat(args.value(123.456), args.precision(1)); // "$123.5"
+const defaultFormatted = namedFormat(args.value(99)); // "$99.00" (uses defaults)
+```
+
+### 🧪 Partial Application
+
+The `BrandedFunction` returned by `createNamedArguments` supports type-safe partial application.
+
+#### Precise Return Types
+
+Based on whether all *required* parameters (as defined by `ParameterInfo`) have been supplied, TypeScript correctly infers if the call returns the final function result or another `BrandedFunction` waiting for more arguments.
+
+```typescript
+// Returns string: 'value' is required and provided.
+const result1: string = namedFormat(args.value(10));
+
+// Returns function: Required 'value' is missing.
+const partial1: BrandedFunction<typeof format, ['prefix']> = namedFormat.partial(
+    args.prefix('USD ')
+);
+
+// Complete later
+const result2: string = partial1(args.value(50)); // "USD 50.00"
+```
+
+#### Type-Safe Application
+
+The type system prevents applying the same **base parameter** multiple times across separate `.partial()` calls or direct partial calls.
+
+```typescript
+function add(a: number, b: number, c: number): number { return a + b + c; }
+type AddArgs = { a: number; b: number; c: number };
+const [args, namedAdd] = createNamedArguments<typeof add, AddArgs>(add);
+
+const addWithA = namedAdd.partial(args.a(5));
+
+// Compile-time Errors below! Parameter "a" was already applied.
+// const error1 = addWithA(args.a(10));
+// const error2 = addWithA.partial(args.a(10));
+
+const addWithAB = addWithA.partial(args.b(10)); // OK
+const result = addWithAB(args.c(15)); // OK -> 30
+```
+*(See [Partial Application with Objects](#partial-application-with-objects) in Gotchas for limitations when partially applying properties of the same object parameter.)*
+
+#### Multi-Stage Partial Application
+
+Build specialized functions incrementally:
+
+```typescript
+// Assume makeRequest function and RequestArgs type exist
+const [reqArgs, namedRequest] = createNamedArguments<typeof makeRequest, RequestArgs>(makeRequest);
+
+// Stage 1: Base API config
+const apiRequest = namedRequest.partial(reqArgs.headers({ /* ... */ }));
+// Stage 2: Method-specific
+const getRequest = apiRequest.partial(reqArgs.method('GET'));
+// Stage 3: Domain-specific
+const userApiGet = getRequest.partial(reqArgs.url('...'), reqArgs.timeout(5000));
+// Stage 4: Final call
+const userData = userApiGet(reqArgs.query({ active: true })); // Execute
+```
+
+### Updating Object Parameters (`reApply`)
+
+Safely update parts of an *already applied* object parameter without re-specifying the whole object, using an updater function.
+
+```typescript
+// Assume setup function and SetupArgs type exist
+const [args, namedConfigure] = createNamedArguments<typeof setup, SetupArgs>(setup);
+
+const baseConfig = namedConfigure.partial(
+  args.port(80),
+  args.options({ poolSize: 10, retry: { attempts: 3, delay: 100 } })
+);
+
+// Use reApply to update options based on the previous value
+const updatedConfig = baseConfig.reApply(
+  args.options, // Specify which parameter's arg creator to use
+  (prevOpts) => ({ // Updater function receives previous value
+    ...prevOpts,
+    retry: { ...prevOpts.retry, attempts: 5 } // Return the updated object
+  })
+);
+
+updatedConfig(args.host('server.com')).execute(); // Uses options with attempts: 5
+```
+
+## Handling Nested Objects
+
+The library provides ways to work with object parameters containing nested properties.
+
+### First-Level Access (Built-in)
+
+By default, `createNamedArguments` generates `CallableObject` accessors for object parameters. These allow both setting the entire object *and* accessing its first-level properties directly.
+
+```typescript
+function setOptions(opts: { timeout: number; retries?: number }) { /* ... */ }
+type OptionArgs = { opts: { timeout: number; retries?: number } };
+
+const [args, namedSetOptions] = createNamedArguments<typeof setOptions, OptionArgs>(setOptions);
+
+// Set the whole object:
+namedSetOptions(args.opts({ timeout: 5000, retries: 3 }));
+
+// Set first-level properties individually (brands as "opts.timeout", "opts.retries"):
+namedSetOptions(args.opts.timeout(3000), args.opts.retries(1));
+```
+
+### Deep Access (`createNestedArgs`)
+
+For accessing properties nested deeper than the first level with type safety, use the `createNestedArgs` utility.
+
+```typescript
+import { createNamedArguments, createNestedArgs } from '@doeixd/named-args';
+
+function setupApp(config: { server: { port: number; ssl: { enabled: boolean } } }) { /* ... */ }
+type SetupAppArgs = { config: { server: { port: number; ssl: { enabled: boolean } } } };
+type ConfigType = SetupAppArgs['config']; // Get the specific type
+
+const [args, namedSetup] = createNamedArguments<typeof setupApp, SetupAppArgs>(setupApp);
+
+// Create nested args proxy for the 'config' parameter
+const configArgs = createNestedArgs<ConfigType>('config');
+
+// Use intuitive dot notation
+namedSetup(
+  configArgs.server.port(8080),          // Brands as "config.server.port"
+  configArgs.server.ssl.enabled(true)  // Brands as "config.server.ssl.enabled"
 );
 ```
 
-### Partial Application
+### Property-Level Access (`createObjectPropertyArgs`)
 
-Unlike traditional currying which requires parameters in a specific order, this library enables:
-- Applying any subset of arguments in any order
-- Creating multiple layers of partial application
-- Maintaining full type safety throughout the process
+If you only need individual top-level property accessors without the ability to set the whole object via the same accessor, `createObjectPropertyArgs` is a simpler utility.
 
 ```typescript
-// Create named arguments for a function
-function formatNumber(value: number, locale: string, style: string, currency?: string) {
-  return new Intl.NumberFormat(locale, { style, currency }).format(value);
-}
+import { createNamedArguments, createObjectPropertyArgs } from '@doeixd/named-args';
 
-const [args, namedFormat] = createNamedArguments(formatNumber);
+function configureServer(options: { port: number; host: string; }) { /* ... */ }
+type ServerOptsArgs = { options: { port: number; host: string; } };
+type OptionsType = ServerOptsArgs['options'];
 
-// Create a partial application - note any subset of args can be applied
-const formatUSD = namedFormat.partial(
-  args.style('currency'),
-  args.currency('USD')
-);
+const [args, namedConfig] = createNamedArguments<typeof configureServer, ServerOptsArgs>(configureServer);
 
-// Create another layer of specialization
-const formatUSPrice = formatUSD.partial(args.locale('en-US'));
+// Create individual property accessors for 'options'
+const optionArgs = createObjectPropertyArgs<OptionsType>('options');
 
-// Finally apply the remaining argument
-console.log(formatUSPrice(args.value(42.99)));  // "$42.99"
-```
-
-### Configurability Pattern
-
-The configurability pattern extends partial application by separating:
-- What is being configured (which parameters)
-- How they're being configured (the values)
-- When they're being applied (the execution)
-
-This creates a powerful API design pattern that promotes reusability and composition.
-
-```typescript
-// Create a configurable function
-const configureFetch = createConfigurableFunction([args, namedFetch]);
-
-// Define a configuration for JSON API requests
-const jsonRequest = configureFetch(args => {
-  args.headers({
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  });
-});
-
-// Use the configured function with remaining parameters
-const response = await jsonRequest(
-  args.url('https://api.example.com/users'),
-  args.method('GET')
+// Use them (cannot call optionArgs(...) itself)
+namedConfig(
+  optionArgs.port(9000),   // Brands as "options.port"
+  optionArgs.host('local') // Brands as "options.host"
 );
 ```
 
-## ⚠️ Gotchas
+## Advanced Patterns
 
-### Type Inference Limitations
+### 🏗️ Builder Pattern (`createBuilder`)
 
-When creating named arguments, explicitly providing type parameters improves inference:
-
-```typescript
-// May have incomplete inference without type parameters
-const [args, namedFn] = createNamedArguments(myFunction);
-
-// Better to be explicit for complex functions
-const [args, namedFn] = createNamedArguments<
-  typeof myFunction,
-  {param1: string, param2: number}
->(myFunction);
-```
-
-### Function Overloads
-
-The library may struggle with complex function overloads. Specify a single overload signature when creating named arguments:
+Provides a fluent interface (`.with(...).execute()`) for accumulating arguments before execution, with type safety preventing duplicate parameter application within the builder chain.
 
 ```typescript
-// For overloaded functions, specify which overload to use
-const [args, namedFetch] = createNamedArguments<
-  (url: string, options?: RequestInit) => Promise<Response>,
-  {url: string, options?: RequestInit}
->(fetch);
+import { createNamedArguments, createBuilder } from "@doeixd/named-args";
+
+function configureApp(port: number, host: string, db: DbConfig, logging?: boolean) { /* ... */ }
+type AppArgs = { port: number; host: string; db: DbConfig; logging?: boolean };
+interface DbConfig { url: string; name: string };
+
+const [args, namedConfig] = createNamedArguments<typeof configureApp, AppArgs>(configureApp);
+
+const appBuilder = createBuilder(namedConfig);
+
+const devConfig = appBuilder
+  .with(args.port(3000))
+  .with(args.host("localhost"))
+  .with(args.db({ url: "localhost:27017", name: "devdb" }))
+  // .with(args.port(3100)) // Compile-time error!
+  .execute();
+
+console.log(devConfig);
 ```
 
-### Performance Considerations
+### ⚙️ Configurable Functions (`createConfigurableFunction`)
 
-Named arguments add a small overhead compared to direct function calls:
+Creates higher-order functions for pre-configuring named argument functions. Useful for dependency injection or creating specialized function variants.
 
-- Each argument is wrapped in a branded object
-- The function performs argument matching at runtime
-- Consider using direct calls in performance-critical paths
-
-## Example: Building a Chart API
-
-### Before:
-```typescript
-// Traditional approach with a charting library
-function createTimeSeriesChart(element, data, options = {}) {
-  // Merge user options with defaults
-  const config = {
-    type: 'line',
-    xAxis: { key: 'timestamp', label: 'Time' },
-    animation: { enabled: true, duration: 800 },
-    tooltip: { enabled: true },
-    ...options
-  };
-  
-  return createChart(element, config);
-}
-
-// Complex, nested, error-prone configuration
-const tempChart = createTimeSeriesChart(
-  document.getElementById('chart'),
-  temperatureData,
-  {
-    yAxis: { key: 'value', label: 'Temperature (°F)', min: 0 },
-    // Oops, typo in property name won't be caught at compile time
-    animaton: { duration: 500 } 
-  }
-);
-```
-
-### After:
 ```typescript
 import { createNamedArguments, createConfigurableFunction } from '@doeixd/named-args';
 
-// Define chart rendering with named parameters
-function renderChart(
-  element: HTMLElement,
-  data: Array<Record<string, any>>,
-  type: 'bar' | 'line' | 'pie',
-  xAxis?: { key: string; label?: string },
-  yAxis?: { key: string; label?: string; min?: number },
-  animation?: { enabled?: boolean; duration?: number },
-  tooltip?: { enabled?: boolean }
-) {
-  // Implementation
-}
+function processArray<T>(arr: T[], filterFn: (i: T) => boolean, sortFn?: (a: T, b: T) => number) { /* ... */ }
+type ProcessArgs<TItem> = { arr: TItem[]; filterFn: (i: TItem) => boolean; sortFn?: (a: TItem, b: TItem) => number };
 
-// Create named arguments
-const [args, namedRenderChart] = createNamedArguments(renderChart);
+const [args, namedProcess] = createNamedArguments<typeof processArray, ProcessArgs<number>>(processArray);
 
-// Create specialized chart builders
-const configureChart = createConfigurableFunction([args, namedRenderChart]);
+const configureProcessor = createConfigurableFunction([args, namedProcess]);
 
-const createTimeSeriesChart = configureChart(args => {
-  args.type('line');
-  args.xAxis({ key: 'timestamp', label: 'Time' });
-  args.animation({ enabled: true, duration: 800 });
-  args.tooltip({ enabled: true });
+// Define a configuration for positive numbers, descending
+const topPositiveProcessor = configureProcessor(cfgArgs => {
+  cfgArgs.filterFn(num => num > 0);
+  cfgArgs.sortFn((a, b) => b - a);
 });
 
-// Type-safe usage with autocomplete and error checking
-const tempChart = createTimeSeriesChart(
-  args.element(document.getElementById('chart')),
-  args.data(temperatureData),
-  args.yAxis({
-    key: 'value',
-    label: 'Temperature (°F)',
-    min: 0
-  })
-  // Typo would be caught by TypeScript:
-  // args.animaton({ duration: 500 }) ❌ Error!
+// Use the configured processor with the remaining 'arr' argument
+const numbers = [-5, 10, 3, -2, 8, 1];
+const result = topPositiveProcessor(args.arr(numbers)); // [10, 8, 3, 1]
+```
+
+### Mapped Arguments (`createMappedNamedArguments`)
+
+*(Located in `@doeixd/named-args/mapped`)*
+
+This advanced utility creates a custom `args` interface based on an explicit mapping you define. It allows renaming arguments and mapping directly to nested properties. Crucially, its returned wrapper function (`MappedBrandedFunction`) provides **partial application based on the mapped keys**, differing from the core library's base-parameter tracking.
+
+**Use Cases:**
+-   Creating a public API for a function with different argument names than the internal implementation.
+-   Enabling incremental partial application of properties targeting the same underlying object parameter (e.g., `.partial(args.hostName(...))` followed by `.partial(args.portNumber(...))`).
+
+**Requires:**
+-   Explicitly providing the base argument structure type `A`.
+-   Defining the mapping configuration object using `as const`.
+
+```typescript
+import { createMappedNamedArguments } from '@doeixd/named-args/mapped'; // Adjust import
+
+function complexTarget(id: string, config: { host: string; port: number; user?: { email: string } }) { /* ... */ }
+type ComplexTargetArgs = { id: string; config: { host: string; port: number; user?: { email: string } } };
+
+// Define the explicit mapping using 'as const'
+const argMapSpec = {
+  serverId: 'id',                 // Rename 'id' -> 'serverId'
+  hostname: 'config.host',        // Map 'hostname' -> 'config.host'
+  portNumber: 'config.port',      // Map 'portNumber' -> 'config.port'
+  notifyEmail: 'config.user.email' // Map 'notifyEmail' -> 'config.user.email'
+} as const; // <-- Use 'as const'
+
+// Create mapped args and the custom function wrapper
+const [args, mappedFunc] = createMappedNamedArguments<
+  typeof complexTarget, // F
+  ComplexTargetArgs,    // A (still required)
+  typeof argMapSpec     // Spec (inferred from const object)
+>(argMapSpec, complexTarget);
+
+// Partial application based on mapped keys works incrementally
+const partial1 = mappedFunc.partial(args.hostname('server.com'));
+const partial2 = partial1.partial(args.portNumber(443)); // OK: portNumber and hostname are distinct mapped keys
+// const partial3 = partial2.partial(args.hostname('new.com')); // COMPILE ERROR: hostname already applied
+
+const result = partial2(args.serverId('srv-1'), args.notifyEmail('a@b.c')).execute();
+```
+
+
+## 🚀 Advanced Features
+
+### Rest Parameters
+
+Rest parameters (`...name: type[]`) are supported via the corresponding `args` accessor.
+
+```typescript
+function sum(label: string, ...numbers: number[]) { /* ... */ }
+type SumArgs = { label: string; numbers: number[] };
+const [args, namedSum] = createNamedArguments<typeof sum, SumArgs>(sum);
+
+// Pass individual values or an array
+namedSum(args.label('Nums:'), args.numbers(1, 5, 9));
+namedSum(args.label('Nums:'), args.numbers([1, 5, 9]));
+```
+
+### Default Values
+
+JavaScript/TypeScript default parameter values (`param = defaultValue`) are respected by the runtime if an argument isn't provided via `args`.
+
+```typescript
+function greet(name: string, greeting = "Hello") { /* ... */ }
+type GreetArgs = { name: string; greeting?: string };
+const [args, namedGreet] = createNamedArguments<typeof greet, GreetArgs>(greet);
+
+namedGreet(args.name("Galaxy")); // Output uses "Hello"
+```
+
+### Parameter Metadata
+
+Provide an explicit `ParameterInfo[]` array to `createNamedArguments` or `createMappedNamedArguments` for precise control over `required` status and `defaultValue` handling, improving type safety and runtime checks. Inference via `toString()` is less reliable.
+
+```typescript
+const [args, func] = createNamedArguments(myFunc, [
+  { name: 'id', required: true },
+  { name: 'timeout', required: false, defaultValue: 5000 }
+]);
+```
+
+## Use Cases & Examples
+
+
+
+-   **Type-Safe Function Composition:** Chain partially applied functions safely.
+-   **Dependency Injection:** Pre-configure services with dependencies.
+-   **Example: Building a Chart API:** Make complex configurations type-safe and readable.
+
+```typescript
+// Chart API Example (Simplified)
+import { createNamedArguments } from '@doeixd/named-args';
+
+// Define types (replace with actual library types)
+type ChartElement = HTMLElement; type ChartData = any[];
+interface AxisOptions { /* ... */ } interface ChartOptions { /* ... */ }
+function renderChart(element: ChartElement, data: ChartData[], options: ChartOptions) { /* ... */ }
+type ChartArgs = { element: ChartElement; data: ChartData[]; options: ChartOptions };
+
+const [args, namedRenderChart] = createNamedArguments<typeof renderChart, ChartArgs>(renderChart);
+
+// Type-safe call using named args
+const myChart = namedRenderChart(
+  args.element(document.getElementById('chart')!),
+  args.data(myData),
+  args.options({ type: 'line', xAxis: { /*...*/ } })
+);
+// Use first-level accessor
+const myChart2 = namedRenderChart(
+  args.element(document.getElementById('chart2')!),
+  args.data(myData),
+  args.options.type('bar') // Set type directly
 );
 ```
 
-This pattern makes your chart configuration:
-- **Type-safe**: Errors caught at compile time
-- **Discoverable**: IDE autocomplete shows available options
-- **Reusable**: Create specialized chart builders with sensible defaults
-- **Clear**: Arguments are explicitly named and can be applied in any order
+## Comparison with Options Objects
 
+| Feature               | Named Arguments (`createNamedArguments`) | Options Object Pattern (`fn(opts)`)       |
+| :-------------------- | :--------------------------------------- | :---------------------------------------- |
+| **Readability**       | High (Self-documenting calls)            | Medium (Depends on option names)          |
+| **Parameter Order**   | Independent                              | Single object, internal order matters     |
+| **Type Safety**       | High (Compile-time checks for args/types) | Medium (Relies on options type definition) |
+| **Optional Args**     | Clearly handled                          | Managed within the options object type    |
+| **Refactoring**       | Safer (Order doesn't matter)             | Safer (Internal changes less impact)      |
+| **Partial Application** | Built-in, Type-Safe                     | Manual implementation required            |
+| **Discoverability**   | High (IDE Autocomplete on `args`)        | Medium (Depends on options type export)   |
+| **Runtime Overhead**  | Small                                    | Minimal                                   |
+| **Boilerplate**       | Some (Type `A`, `create...` call)        | Some (Interface/Type for options)         |
+
+Named arguments excel when functions have multiple parameters (especially optional ones) or when partial application and composability are desired. Options objects are simpler for functions with a single configuration bundle.
+
+## 💡 Why This Matters
+
+-   Reduces errors caused by incorrect argument order or type mismatches.
+-   Improves code clarity and makes function calls easier to understand.
+-   Enhances refactoring safety.
+-   Enables powerful functional patterns like partial application and composition in a type-safe manner.
+
+## ⚠️ Gotchas & Troubleshooting
+
+-   **Type Inference Limitations:** Always prefer providing explicit `<F, A>` generics to `createNamedArguments` and `<F, A, Spec>` to `createMappedNamedArguments` for best results. Relying on inference can sometimes lead to less precise types, especially with complex functions. Define the `A` type explicitly.
+-   **Function Overloads:** The library works best with single-signature functions. For overloaded functions, pass the *specific overload signature* you want to wrap as the `F` generic type parameter.
+-   **Performance Considerations:** There's a small runtime overhead per argument and per function call compared to direct positional arguments. This is usually negligible but avoid in performance hotspots if necessary.
+-   **Partial Application with Objects (Core Library):** Remember the core `BrandedFunction` tracks applied arguments by *base parameter name*. Partially applying `args.config.host(...)` prevents applying `args.config.port(...)` in a *subsequent* partial call to the *same resulting function*.
+    -   **Workarounds:** Apply related properties in one `.partial()` call, use `reApply`, use the full object setter `args.config({...})` (which typically overwrites), or use `createMappedNamedArguments` for different semantics.
+-   **`as const` for Mapped/Flattening Configs:** When using `createMappedNamedArguments` or optional flattening utilities, always define the configuration object with `as const` and **do not** add an explicit interface type annotation to the variable itself (e.g., `const config = { ... } as const;` not `const config: MyConfigInterface = { ... } as const;`). This preserves required literal types.
+-   **`Cannot find name 'Spec'` / `Type 'X' is not assignable...`:** If you encounter complex type errors, double-check:
+    -   Correct `import` paths.
+    -   Correct use of `as const` for config objects.
+    -   Accurate `A` type provided.
+    -   Restarting your TypeScript server / IDE.
+    -   You are using a compatible TypeScript version.
+
+## Compatibility
+
+-   Requires **TypeScript 4.1+** (for Template Literal Types used internally). Higher versions (4.5+) are recommended for better inference with complex types.
+-   Works with standard JavaScript runtimes (Node, browsers) after TypeScript compilation.
+
+## Contributing
+
+Contributions are welcome! Please feel free to open an issue or submit a pull request on the [GitHub repository][github-url].
+
+Okay, here's a detailed API reference including the function signature and a usage example for each key exported function.
+
+---
 
 ## 📚 API Reference
 
-### Core Library
+This reference details the primary functions, interfaces, and types exported by the `@doeixd/named-args` library and its associated modules.
+
+---
+
+### **Core Library (`@doeixd/named-args`)**
+
+These are the fundamental exports for creating and using named arguments.
+
+---
 
 #### `createNamedArguments<F, A>(func, parameters?)`
 
-Transforms a regular function into one that accepts named arguments.
+Transforms a standard function into one accepting named arguments via a generated `args` object and returns a specialized wrapper function (`BrandedFunction`).
 
-**Type Parameters:**
-- `F`: Type of the original function
-- `A`: Record type describing the argument structure
+*   **Signature:**
+    ```typescript
+    function createNamedArguments<
+      F extends (...args: any[]) => any,
+      A extends Record<string, any> = ParamsToObject<Parameters<F>> // Provide A explicitly!
+    >(
+      func: F,
+      parameters?: Readonly<ParameterInfo[]>
+    ): [NamedArgs<A>, BrandedFunction<F>]
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments } from '@doeixd/named-args';
 
-**Parameters:**
-- `func`: The function to transform
-- `parameters?`: Optional parameter metadata
+    function processUser(id: string, name: string, active: boolean = true) {
+      return { id, name, active };
+    }
+    type ProcessUserArgs = { id: string; name: string; active?: boolean };
 
-**Returns:**
-- A tuple containing:
-  - Named argument accessors (with properties matching the type `A`)
-  - A branded function that accepts named arguments
+    const [args, namedProcessUser] = createNamedArguments<
+      typeof processUser,
+      ProcessUserArgs
+    >(
+      processUser,
+      // Optional metadata for better type safety
+      [ { name: 'id', required: true }, { name: 'name', required: true }, { name: 'active', required: false, defaultValue: true }]
+    );
 
-#### `createNestedArgs<T>(basePath)`
+    const result = namedProcessUser(args.name('Alice'), args.id('u1'));
+    console.log(result); // { id: 'u1', name: 'Alice', active: true }
 
-Creates named arguments for deeply nested object properties with full type safety.
+    const partial = namedProcessUser.partial(args.id('u2'));
+    const result2 = partial(args.name('Bob'), args.active(false));
+    console.log(result2); // { id: 'u2', name: 'Bob', active: false }
+    ```
 
-**Type Parameters:**
-- `T`: The type of the object whose nested properties will be accessed
-
-**Parameters:**
-- `basePath`: The base path for all properties (usually the parameter name)
-
-**Returns:**
-- A proxy object that provides type-safe access to all nested properties
-
-#### `createObjectPropertyArgs<T>(paramName)`
-
-Creates named arguments for individual properties of an object parameter.
-
-**Type Parameters:**
-- `T`: The object type whose properties will be accessed
-
-**Parameters:**
-- `paramName`: The name of the parameter in the function
-
-**Returns:**
-- An object with named arguments for each property of the object parameter
-
-#### `createConfigurableFunction<A, F>([args, brandedFunc])`
-
-Creates a configurable function that can be pre-configured with specific arguments.
-
-**Parameters:**
-- A tuple containing named argument accessors and a branded function (from `createNamedArguments`)
-
-**Returns:**
-- A function that takes a setup function and returns a configured version of the original function
+---
 
 #### `createBuilder<F>(brandedFunc)`
 
-Creates a builder for constructing function calls with type-safe parameter tracking.
+Creates a `Builder` instance for fluently constructing calls to a `BrandedFunction`, preventing duplicate argument application within the chain.
 
-**Parameters:**
-- `brandedFunc`: A branded function created with `createNamedArguments`
+*   **Signature:**
+    ```typescript
+    function createBuilder<F extends (...args: any[]) => any>(
+      brandedFunc: BrandedFunction<F>
+    ): Builder<F> // Builder has .with(...args) and .execute() methods
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, createBuilder } from '@doeixd/named-args';
 
-**Returns:**
-- A builder instance with methods for adding arguments and executing the function
+    function createItem(sku: string, quantity: number, location: string) { /* ... */ }
+    type ItemArgs = { sku: string; quantity: number; location: string };
 
-### Composability Utilities
+    const [args, namedCreateItem] = createNamedArguments<typeof createItem, ItemArgs>(createItem);
+    const itemBuilder = createBuilder(namedCreateItem);
 
-#### `transformArg<T, U>(argCreator, transformer)`
+    const item = itemBuilder
+      .with(args.sku('XYZ-123'))
+      .with(args.quantity(100))
+      .with(args.location('Warehouse A'))
+      // .with(args.sku('ABC-456')) // Would log warning at runtime, potentially error if strict
+      .execute();
 
-Creates a transformer for named arguments that applies a transformation function to values.
+    // item now holds the result of createItem(...)
+    ```
 
-**Parameters:**
-- `argCreator`: The original argument creator function
-- `transformer`: Function that transforms the input value to the required type
+---
 
-**Returns:**
-- A new argument creator that accepts `U` and applies the transformation
+#### `createConfigurableFunction<A, F>([args, brandedFunc])`
 
-#### `createArgGroup<T>(config)`
+Creates a higher-order function factory used to preset arguments for a `BrandedFunction`, useful for creating specialized variants.
 
-Creates a group of related named arguments that can be applied together.
+*   **Signature:**
+    ```typescript
+    function createConfigurableFunction<
+      A extends Record<string, any>,
+      F extends (...args: any[]) => any
+    >(
+      [args, brandedFunc]: [NamedArgs<A>, BrandedFunction<F>]
+    ): (setupFn: (wrappedArgs: NamedArgs<A>) => void) => (...remainingArgs: BrandedArg[]) => CoreReturnType<F>
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, createConfigurableFunction } from '@doeixd/named-args';
 
-**Parameters:**
-- `config`: Configuration mapping of property names to argument creators
+    function sendNotification(to: string, subject: string, body: string, urgent: boolean = false) { /* ... */ }
+    type NotifyArgs = { to: string; subject: string; body: string; urgent?: boolean };
 
-**Returns:**
-- Function that generates branded arguments from values
+    const [args, namedNotify] = createNamedArguments<typeof sendNotification, NotifyArgs>(sendNotification);
+    const configureNotifier = createConfigurableFunction([args, namedNotify]);
 
-#### `combineArgs<T>(targetArg, combiner, ...sourceArgs)`
+    // Create a pre-configured function for urgent notifications
+    const urgentNotifier = configureNotifier(cfgArgs => {
+      cfgArgs.urgent(true);
+      cfgArgs.subject("URGENT NOTIFICATION");
+    });
 
-Creates a combined argument that merges multiple named arguments into one.
+    // Use the configured function, providing only remaining args
+    urgentNotifier(args.to('admin@example.com'), args.body('Server down!'));
+    ```
 
-**Parameters:**
-- `targetArg`: The argument to receive the combined value
-- `combiner`: Function that combines the source values
-- `sourceArgs`: The source arguments to combine
+---
 
-**Returns:**
-- Function that applies the sources and returns the combined argument
+#### `createNestedArgs<T>(basePath)`
 
-#### `withDefault<T>(argCreator, defaultValue)`
+Creates a proxy object for type-safe access to deeply nested properties of an object parameter.
 
-Provides a default value for an optional argument.
+*   **Signature:**
+    ```typescript
+    function createNestedArgs<T extends Record<string, any>>(
+      basePath: string
+    ): NestedArgs<T>
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, createNestedArgs } from '@doeixd/named-args';
 
-**Parameters:**
-- `argCreator`: The argument creator function
-- `defaultValue`: The default value to use when the argument is not provided
+    interface AppConfig { server: { port: number; ssl: { enabled: boolean } }; db: { url: string }; }
+    function setupApp(config: AppConfig) { /* ... */ }
+    type SetupAppArgs = { config: AppConfig };
 
-**Returns:**
-- Function that creates the argument with the default value
+    const [args, namedSetup] = createNamedArguments<typeof setupApp, SetupAppArgs>(setupApp);
+    const configArgs = createNestedArgs<AppConfig>('config'); // Proxy for 'config' parameter
 
-#### `pipeline<T, U>(argCreator)`
+    namedSetup(
+      configArgs.server.port(8080),          // Creates BrandedArg with name: "config.server.port"
+      configArgs.server.ssl.enabled(true),  // Creates BrandedArg with name: "config.server.ssl.enabled"
+      configArgs.db.url("...")             // Creates BrandedArg with name: "config.db.url"
+    );
+    ```
 
-Creates a pipeline of transformations for a value before applying it as an argument.
+---
 
-**Parameters:**
-- `argCreator`: The argument creator function for the final value
+#### `createObjectPropertyArgs<T>(paramName)`
 
-**Returns:**
-- A pipeline builder object with methods:
-  - `map<V>(fn)`: Adds a transformation to the pipeline
-  - `filter(predicate, fallback)`: Adds a filter to the pipeline
-  - `apply(value)`: Applies the pipeline to a value
+Creates individual argument accessors for the *first-level* properties of an object parameter.
 
-#### `withValidation<T>(argCreator, validator, errorMessage?)`
+*   **Signature:**
+    ```typescript
+    function createObjectPropertyArgs<T extends Record<string, any>>(
+      paramName: string
+    ): Record<keyof T, NamedArg<any, `${string & typeof paramName}.${string & keyof T}`>> // Simplified return type representation
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, createObjectPropertyArgs } from '@doeixd/named-args';
 
-Creates a wrapper function that provides validation for arguments.
+    interface ServerOptions { port: number; host: string; }
+    function configureServer(options: ServerOptions) { /* ... */ }
+    type ServerOptsArgs = { options: ServerOptions };
 
-**Parameters:**
-- `argCreator`: The argument creator function
-- `validator`: Function that validates the value
-- `errorMessage?`: Optional error message for validation failures
+    const [args, namedConfig] = createNamedArguments<typeof configureServer, ServerOptsArgs>(configureServer);
+    const optionArgs = createObjectPropertyArgs<ServerOptions>('options');
 
-**Returns:**
-- A new argument creator with validation
+    namedConfig(
+      optionArgs.port(9000),   // Creates BrandedArg with name: "options.port"
+      optionArgs.host('local') // Creates BrandedArg with name: "options.host"
+    );
+    ```
+
+---
+
+#### `isBrandedArg(value)`
+
+Type guard to determine if an unknown value is a `BrandedArg`.
+
+*   **Signature:**
+    ```typescript
+    function isBrandedArg<T = unknown, N extends string = string>(
+      value: unknown
+    ): value is BrandedArg<T, N>
+    ```
+*   **Example:**
+    ```typescript
+    import { isBrandedArg } from '@doeixd/named-args';
+    if (isBrandedArg(someValue)) {
+        console.log('Is branded arg:', someValue[BRAND_SYMBOL].name, someValue[BRAND_SYMBOL].value);
+    }
+    ```
+
+---
+
+#### `isBrandedFunction(value)`
+
+Type guard to determine if an unknown value is a `BrandedFunction`.
+
+*   **Signature:**
+    ```typescript
+    function isBrandedFunction<F extends (...args: any[]) => any>(
+      value: unknown
+    ): value is BrandedFunction<F>
+    ```
+*   **Example:**
+    ```typescript
+    import { isBrandedFunction } from '@doeixd/named-args';
+    if (isBrandedFunction(myFunc)) {
+        console.log('Is branded function for:', myFunc._originalFunction.name);
+        console.log('Remaining required:', myFunc.remainingArgs());
+    }
+    ```
+
+---
+
+### **Mapped Arguments Module (`@doeixd/named-args/mapped`)**
+
+Provides an alternative factory for creating named arguments based on an explicit mapping, offering different partial application semantics.
+
+---
+
+#### `createMappedNamedArguments<F, A, Spec>(argMapSpec, func, parameters?)`
+
+Creates a custom `args` object and wrapper function based on an explicit specification map. Allows renaming and mapping to nested paths, with partial application based on the *mapped keys*.
+
+*   **Signature:**
+    ```typescript
+    function createMappedNamedArguments<
+      F extends (...args: any[]) => any,
+      A extends Record<string, any>, // MUST provide accurate type A
+      Spec extends ArgMapSpecification // Inferred from const object
+    >(
+      argMapSpec: Spec, // MUST define with 'as const'
+      func: F,
+      parameters?: Readonly<ParameterInfo[]>
+    ): [MappedNamedArgs<A, Spec>, MappedBrandedFunction<F, A, Spec, []>]
+    ```
+*   **Example:**
+    ```typescript
+    import { createMappedNamedArguments } from '@doeixd/named-args/mapped';
+
+    function complexTarget(id: string, config: { host: string; port: number }) { /* ... */ }
+    type ComplexTargetArgs = { id: string; config: { host: string; port: number } };
+
+    // Define mapping with 'as const'
+    const spec = {
+      serverId: 'id',
+      hostname: 'config.host',
+      portNum: 'config.port'
+    } as const;
+
+    // Create mapped args and function
+    const [args, mappedFunc] = createMappedNamedArguments<
+      typeof complexTarget,
+      ComplexTargetArgs, // Explicit A
+      typeof spec
+    >(spec, complexTarget);
+
+    // Call using mapped names
+    const partial = mappedFunc.partial(args.hostname('srv1')); // Applied 'hostname' key
+    const final = partial(args.portNum(8080), args.serverId('id1')); // OK to apply 'portNum' (targets same base 'config')
+    const result = final.execute();
+
+    console.log(result); // { id: 'id1', connection: 'srv1:8080', ... }
+    ```
+
+---
+
+### **Composability Utilities Module (`@doeixd/named-args/composability`)**
+
+*(Assuming export from `@doeixd/named-args` or a submodule)*
+
+Provides functions to transform or combine argument creators (`NamedArg` functions).
+
+---
+
+#### `transformArg(argCreator, transformer)`
+
+Applies a transformation to the input value *before* creating the branded argument.
+
+*   **Signature:**
+    ```typescript
+    function transformArg<T, U, N extends string>(
+      argCreator: NamedArg<T, N>, // e.g., args.timestamp expecting Date
+      transformer: (value: U) => T // e.g., (v: string) => new Date(v)
+    ): NamedArg<U, N> // Returns new arg creator expecting string
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, transformArg } from '@doeixd/named-args';
+
+    function process(ts: Date) {/*...*/}
+    type ProcessArgs = { ts: Date };
+    const [args, namedProcess] = createNamedArguments<typeof process, ProcessArgs>(process);
+
+    const dateStringArg = transformArg(args.ts, (str: string) => new Date(str));
+
+    namedProcess(dateStringArg("2024-03-14T10:00:00Z")); // Pass string, gets converted
+    ```
+
+---
+
+#### `createArgGroup(config)`
+
+Groups related `NamedArg` functions so they can be applied together via a single object.
+
+*   **Signature:**
+    ```typescript
+    function createArgGroup<T extends Record<string, any>>(
+      config: ArgGroupConfig<T> // Object mapping keys to NamedArg or nested groups
+    ): (values: Partial<T>) => BrandedArg[] // Function taking values, returning array of BrandedArgs
+    ```
+    *(See `ArgGroupConfig<T>` type definition for details)*
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, createArgGroup } from '@doeixd/named-args';
+
+    function connect(db: { host: string; port: number; user: string; }) {/*...*/}
+    type ConnectArgs = { db: { host: string; port: number; user: string; } };
+    const [args, namedConnect] = createNamedArguments<typeof connect, ConnectArgs>(connect);
+
+    const dbGroup = createArgGroup({ // Corresponds to 'db' parameter properties
+        host: args.db.host,
+        port: args.db.port,
+        user: args.db.user,
+    });
+
+    namedConnect( ...dbGroup({ host: 'db.local', port: 5432, user: 'app' }) );
+    ```
+
+---
+
+#### `pipeline(argCreator)`
+
+Creates a builder object to chain multiple transformation and filter steps for an argument's value.
+
+*   **Signature:**
+    ```typescript
+    function pipeline<T, U>( // T=initial input, U=final arg type
+      argCreator: NamedArg<U, any>
+    ): ArgumentPipeline<T, U> // Returns pipeline object with .map, .filter, .apply
+    ```
+    *(See `ArgumentPipeline<T, U>` interface definition for details)*
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, pipeline } from '@doeixd/named-args';
+
+    function setRate(rate: number) {/*...*/}
+    type RateArgs = { rate: number };
+    const [args, namedSetRate] = createNamedArguments<typeof setRate, RateArgs>(setRate);
+
+    const ratePipeline = pipeline<string, number>(args.rate) // Input string, output number
+      .map(val => parseFloat(val))
+      .map(val => Math.max(0, val)) // Ensure non-negative
+      .map(val => Math.min(1, val)); // Ensure max 1
+
+    namedSetRate(ratePipeline("-0.5")); // Applies rate = 0
+    namedSetRate(ratePipeline("1.2"));  // Applies rate = 1
+    namedSetRate(ratePipeline("0.75")); // Applies rate = 0.75
+    ```
+
+---
+
+#### `combineArgs(targetArg, combiner, ...sourceArgs)`
+
+Creates a "meta-argument" function that derives the value for `targetArg` by combining values implicitly passed via `sourceArgs`.
+
+*   **Signature:**
+    ```typescript
+    function combineArgs<T>(
+      targetArg: NamedArg<T, any>, // The arg to set
+      combiner: (sourceValues: any[]) => T, // Function to combine values
+      ...sourceArgs: NamedArg<any, any>[] // Args providing input to combiner
+    ): () => BrandedArg<T>[] // Function returning the calculated BrandedArg for target
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, combineArgs } from '@doeixd/named-args';
+
+    function drawRect(w: number, h: number, area: number) {/*...*/}
+    type RectArgs = { w: number; h: number; area: number };
+    const [args, namedDraw] = createNamedArguments<typeof drawRect, RectArgs>(drawRect);
+
+    const autoArea = combineArgs(
+        args.area, // Target
+        ([width, height]) => width * height, // Combiner
+        args.w, args.h // Sources
+    );
+
+    // Call with width and height, area is added automatically by spreading ...autoArea()
+    namedDraw(args.w(10), args.h(5), ...autoArea());
+    ```
+
+---
+
+#### `withDefault(argCreator, defaultValue)`
+
+Creates a function that, when called with no arguments (`...myDefault()`), produces the `BrandedArg` for `argCreator` using the `defaultValue`.
+
+*   **Signature:**
+    ```typescript
+    function withDefault<T>(
+      argCreator: NamedArg<T, any>,
+      defaultValue: T
+    ): () => BrandedArg<T>[] // Returns function producing the default BrandedArg in an array
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, withDefault } from '@doeixd/named-args';
+
+    function process(data: string, priority?: number) {/*...*/}
+    type ProcessArgs = { data: string; priority?: number };
+    const [args, namedProcess] = createNamedArguments<typeof process, ProcessArgs>(process);
+
+    const defaultPriority = withDefault(args.priority, 5); // Default priority is 5
+
+    namedProcess(args.data("A")); // priority is undefined
+    namedProcess(args.data("B"), args.priority(10)); // priority is 10
+    namedProcess(args.data("C"), ...defaultPriority()); // priority is 5
+    ```
+
+---
+
+#### `withValidation(argCreator, validator, errorMessage?)`
+
+Wraps a `NamedArg` creator, adding runtime validation. Throws an error if the `validator` function returns `false` for the provided value.
+
+*   **Signature:**
+    ```typescript
+    function withValidation<T>(
+      argCreator: NamedArg<T, any>,
+      validator: (value: T) => boolean,
+      errorMessage?: string
+    ): NamedArg<T, any> // Returns a new validating NamedArg creator
+    ```
+*   **Example:**
+    ```typescript
+    import { createNamedArguments, withValidation } from '@doeixd/named-args';
+
+    function setAge(age: number) {/*...*/}
+    type AgeArgs = { age: number };
+    const [args, namedSetAge] = createNamedArguments<typeof setAge, AgeArgs>(setAge);
+
+    const validatedAge = withValidation(
+      args.age,
+      (a) => a >= 0 && a < 130, // Validator
+      "Age must be between 0 and 129" // Error message
+    );
+
+    namedSetAge(validatedAge(30)); // OK
+    // namedSetAge(validatedAge(150)); // Throws Error: "Age must be between 0 and 129"
+    ```
+---
 
 ## 📝 License
 
 MIT
+
+---
+[npm-image]: https://img.shields.io/npm/v/@doeixd/named-args.svg?style=flat-square
+[npm-url]: https://npmjs.org/package/@doeixd/named-args
+[build-image]: https://img.shields.io/github/actions/workflow/status/doeixd/named-args/main.yml?branch=main&style=flat-square
+[build-url]: https://github.com/doeixd/named-args/actions?query=workflow%3Amain
+[license-image]: https://img.shields.io/npm/l/@doeixd/named-args.svg?style=flat-square
+[license-url]: https://github.com/doeixd/named-args/blob/main/LICENSE
+[downloads-image]: https://img.shields.io/npm/dm/@doeixd/named-args.svg?style=flat-square
+[downloads-url]: https://npmjs.org/package/@doeixd/named-args
+[github-url]: https://github.com/doeixd/named-args

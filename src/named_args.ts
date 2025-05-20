@@ -242,21 +242,29 @@ type Prettify<T> = {
 //     : {}
 //   : {})
 
-export type NamedArgs<
-  T extends Record<string, any>,
-  Config extends NamedArgsConfig = {}
-> = Prettify<
-  // Base arguments (e.g., args.requestOptions)
-  {
-    [K in keyof T]-?: T[K] extends Record<string, any>
-      ? // Handle nested objects - make them callable and allow property access
-        CallableObject<T[K], string & K>
-      : // Handle non-object parameters
-        NamedArg<T[K], string & K>;
-  }
-  // Merge with flattened arguments (e.g., args.contentType)
-  & FlattenedArgsType<T, Config['flattenAs']>
->;
+// export type NamedArgs<
+//   T extends Record<string, any>,
+//   Config extends NamedArgsConfig = {}
+// > = Prettify<
+//   // Base arguments (e.g., args.requestOptions)
+//   {
+//     [K in keyof T]-?: T[K] extends Record<string, any>
+//       ? // Handle nested objects - make them callable and allow property access
+//         CallableObject<T[K], string & K>
+//       : // Handle non-object parameters
+//         NamedArg<T[K], string & K>;
+//   }
+//   // Merge with flattened arguments (e.g., args.contentType)
+//   & FlattenedArgsType<T, Config['flattenAs']>
+// >;
+
+export type NamedArgs<T extends Record<string, any>> = {
+  [K in keyof T]-?: T[K] extends Record<string, any>
+    ? // NOTE: CallableObject provides access to 1st level properties, e.g. args.options.timeout()
+      // Deeper nesting needs a dedicated utility like createNestedArgs.
+      CallableObject<T[K], string & K>
+    : NamedArg<T[K], string & K>;
+};
 
 /** Metadata for function parameters */
 export interface ParameterInfo {
@@ -628,12 +636,12 @@ export function createNamedArguments<
 }
 
 /** Helper to create a branded argument */
-function createNamedArg<T, N extends string>(name: N): NamedArg<T, N> {
+export function createNamedArg<T, N extends string>(name: N): NamedArg<T, N> {
   return (value: T) => ({ [BRAND_SYMBOL]: { name, value } } as BrandedArg<T, N>);
 }
 
 /** Infers parameter information from a function's signature */
-function inferParameters(func: Function): ParameterInfo[] {
+export function inferParameters(func: Function): ParameterInfo[] {
   const paramStr = func.toString().match(/(?:function\s*\w*|\(\s*|\b)\s*\(([^)]*)\)/)?.[1] || '';
   const paramNames = paramStr.split(',').map(p => p.trim().split(/[?=]/)[0].replace(/^\{|\}$/g, ''));
   return paramNames.map(name => ({
@@ -655,9 +663,9 @@ function inferParameters(func: Function): ParameterInfo[] {
  *
  * @internal
  */
-function createBrandedFunction<F extends (...args: any[]) => any>(
+export function createBrandedFunction<F extends (...args: any[]) => any>(
   func: F,
-  paramInfo: ParameterInfo[],
+  paramInfo: ParameterInfo[] | Readonly<ParameterInfo[]>,
   appliedParams: string[] = []
 ): BrandedFunction<F> {
   // Create appliedArgsMap to track argument values by parameter name
@@ -754,10 +762,10 @@ function createBrandedFunction<F extends (...args: any[]) => any>(
     }
 
     // Apply default values
-    applyDefaultValues(args, paramInfo);
+    applyDefaultValues(args, [...paramInfo]);
     
     // Check for missing required args
-    checkMissingArgs(args, paramInfo);
+    checkMissingArgs(args, [...paramInfo]);
     
     // Call the wrapped function with all args
     return func.apply(this, [...args, ...restArgs]);

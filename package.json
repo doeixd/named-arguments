@@ -14,7 +14,10 @@
     "named args",
     "keyword args",
     "keyword arguments",
-    "pridepack"
+    "pridepack",
+    "kwargs",
+    "named parameters",
+    "named parameters for javascript"
   ],
   "devDependencies": {
     "@types/node": "^20.14.9",

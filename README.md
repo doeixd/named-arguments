@@ -495,20 +495,16 @@ Named arguments excel when functions have multiple parameters (especially option
 Contributions are welcome! Please feel free to open an issue or submit a pull request on the [GitHub repository][github-url].
 
 Okay, here's a detailed API reference including the function signature and a usage example for each key exported function.
-
----
-
+  
 ## 📚 API Reference
 
 This reference details the primary functions, interfaces, and types exported by the `@doeixd/named-args` library and its associated modules.
 
----
 
 ### **Core Library (`@doeixd/named-args`)**
 
 These are the fundamental exports for creating and using named arguments.
 
----
 
 #### `createNamedArguments<F, A>(func, parameters?)`
 
@@ -550,7 +546,6 @@ Transforms a standard function into one accepting named arguments via a generate
     console.log(result2); // { id: 'u2', name: 'Bob', active: false }
     ```
 
----
 
 #### `createBuilder<F>(brandedFunc)`
 
@@ -582,7 +577,6 @@ Creates a `Builder` instance for fluently constructing calls to a `BrandedFuncti
     // item now holds the result of createItem(...)
     ```
 
----
 
 #### `createConfigurableFunction<A, F>([args, brandedFunc])`
 
@@ -617,7 +611,6 @@ Creates a higher-order function factory used to preset arguments for a `BrandedF
     urgentNotifier(args.to('admin@example.com'), args.body('Server down!'));
     ```
 
----
 
 #### `createNestedArgs<T>(basePath)`
 
@@ -647,7 +640,6 @@ Creates a proxy object for type-safe access to deeply nested properties of an ob
     );
     ```
 
----
 
 #### `createObjectPropertyArgs<T>(paramName)`
 
@@ -676,7 +668,6 @@ Creates individual argument accessors for the *first-level* properties of an obj
     );
     ```
 
----
 
 #### `isBrandedArg(value)`
 
@@ -696,7 +687,6 @@ Type guard to determine if an unknown value is a `BrandedArg`.
     }
     ```
 
----
 
 #### `isBrandedFunction(value)`
 
@@ -717,13 +707,11 @@ Type guard to determine if an unknown value is a `BrandedFunction`.
     }
     ```
 
----
 
 ### **Mapped Arguments Module (`@doeixd/named-args/mapped`)**
 
 Provides an alternative factory for creating named arguments based on an explicit mapping, offering different partial application semantics.
 
----
 
 #### `createMappedNamedArguments<F, A, Spec>(argMapSpec, func, parameters?)`
 
@@ -770,13 +758,11 @@ Creates a custom `args` object and wrapper function based on an explicit specifi
     console.log(result); // { id: 'id1', connection: 'srv1:8080', ... }
     ```
 
----
 
 ### Composability Utilities 
 
 Provides functions to transform or combine argument creators (`NamedArg` functions).
 
----
 
 #### `transformArg(argCreator, transformer)`
 
@@ -802,7 +788,6 @@ Applies a transformation to the input value *before* creating the branded argume
     namedProcess(dateStringArg("2024-03-14T10:00:00Z")); // Pass string, gets converted
     ```
 
----
 
 #### `createArgGroup(config)`
 
@@ -832,7 +817,6 @@ Groups related `NamedArg` functions so they can be applied together via a single
     namedConnect( ...dbGroup({ host: 'db.local', port: 5432, user: 'app' }) );
     ```
 
----
 
 #### `pipeline(argCreator)`
 
@@ -863,7 +847,6 @@ Creates a builder object to chain multiple transformation and filter steps for a
     namedSetRate(ratePipeline("0.75")); // Applies rate = 0.75
     ```
 
----
 
 #### `combineArgs(targetArg, combiner, ...sourceArgs)`
 
@@ -895,7 +878,6 @@ Creates a "meta-argument" function that derives the value for `targetArg` by com
     namedDraw(args.w(10), args.h(5), ...autoArea());
     ```
 
----
 
 #### `withDefault(argCreator, defaultValue)`
 
@@ -923,7 +905,6 @@ Creates a function that, when called with no arguments (`...myDefault()`), produ
     namedProcess(args.data("C"), ...defaultPriority()); // priority is 5
     ```
 
----
 
 #### `withValidation(argCreator, validator, errorMessage?)`
 
@@ -954,13 +935,11 @@ Wraps a `NamedArg` creator, adding runtime validation. Throws an error if the `v
     namedSetAge(validatedAge(30)); // OK
     // namedSetAge(validatedAge(150)); // Throws Error: "Age must be between 0 and 129"
     ```
----
 
 ## 📝 License
 
 MIT
 
----
 [npm-image]: https://img.shields.io/npm/v/@doeixd/named-args.svg?style=flat-square
 [npm-url]: https://npmjs.org/package/@doeixd/named-args
 [build-image]: https://img.shields.io/github/actions/workflow/status/doeixd/named-args/main.yml?branch=main&style=flat-square

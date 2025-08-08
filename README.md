@@ -447,21 +447,185 @@ const myChart2 = namedRenderChart(
 );
 ```
 
-## Comparison with Options Objects
+## ⚖️ Why not just use an object!?
 
-| Feature               | Named Arguments (`createNamedArguments`) | Options Object Pattern (`fn(opts)`)       |
-| :-------------------- | :--------------------------------------- | :---------------------------------------- |
-| **Readability**       | High (Self-documenting calls)            | Medium (Depends on option names)          |
-| **Parameter Order**   | Independent                              | Single object, internal order matters     |
-| **Type Safety**       | High (Compile-time checks for args/types) | Medium (Relies on options type definition) |
-| **Optional Args**     | Clearly handled                          | Managed within the options object type    |
-| **Refactoring**       | Safer (Order doesn't matter)             | Safer (Internal changes less impact)      |
-| **Partial Application** | Built-in, Type-Safe                     | Manual implementation required            |
-| **Discoverability**   | High (IDE Autocomplete on `args`)        | Medium (Depends on options type export)   |
-| **Runtime Overhead**  | Small                                    | Minimal                                   |
-| **Boilerplate**       | Some (Type `A`, `create...` call)        | Some (Interface/Type for options)         |
+It’s true — for a single call site, a destructured object parameter already gives you named arguments, order-independence, and type checking:
 
-Named arguments excel when functions have multiple parameters (especially optional ones) or when partial application and composability are desired. Options objects are simpler for functions with a single configuration bundle.
+```ts
+function sendEmail({ to, subject, body }: { to: string; subject: string; body: string }) {
+  // Implementation...
+}
+
+sendEmail({
+  to: 'colleague@example.com',
+  subject: 'Meeting reminder',
+  // boody: "typo" // Compile-time error
+});
+```
+
+That’s simple, zero-runtime-cost, and fine for small, isolated functions.
+
+The difference is that **object parameters stop being ergonomic when you need composition, partial application, argument sharing between unrelated functions, or fine-grained refactoring safety**. That’s where `createNamedArguments` shines.
+
+### Where objects fall short — and named arguments win
+
+| Concern                             | Plain objects                                                   | `createNamedArguments`                                                                 |
+| ----------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Reuse of a single field**         | Must pass/merge the whole object.                               | Each `args.foo(...)` is a reusable, type-safe unit.                                    |
+| **Share argument across functions** | Requires a shared object type → couples APIs.                   | Same argument creator works across unrelated functions.                                |
+| **Layered configuration**           | Manual `{...spread}` merges; risk of overwriting values.        | Combine branded arguments directly (`...defaults, ...overrides`) with compiler safety. |
+| **Partial application**             | Must hand-roll closures and merges to track which keys are set. | `.partial()` built in; type system tracks remaining args automatically.                |
+| **Duplicate-application safety**    | Overwrites happen silently.                                     | Compile-time error if you apply the same arg twice (unless you `reApply`).             |
+| **Targeting nested properties**     | Requires deep merge or full-object replacement.                 | Direct, type-safe accessors (`args.config.server.port(8080)`).                         |
+| **Refactoring safety**              | Renaming keys ripples through all consuming object shapes.      | Arguments are bound where they’re created — smaller, safer refactor surface.           |
+
+### Higher-order composition — without coupling types
+
+With plain objects, sharing arguments across APIs means managing shared types and merging shapes:
+
+```ts
+type WithAuth = { authToken: string };
+
+function fetchOrders(opts: WithAuth & { status?: string }) { /* ... */ }
+function updateInventory(opts: WithAuth & { sku: string; qty: number }) { /* ... */ }
+
+const auth = { authToken: 'secret123' };
+fetchOrders({ ...auth, status: 'pending' });
+updateInventory({ ...auth, sku: 'ABC', qty: 5 });
+```
+
+With named arguments, arguments are **portable building blocks**:
+
+```ts
+const [orderArgs, namedFetchOrders] = createNamedArguments(fetchOrders);
+const [invArgs, namedUpdateInventory] = createNamedArguments(updateInventory);
+
+// High-order helper that works for both functions
+function withAuthToken<T extends { authToken: string }>(
+  argCreator: (token: string) => any,
+  token: string
+) {
+  return argCreator(token);
+}
+
+// No shared object type, no merging
+namedFetchOrders(
+  withAuthToken(orderArgs.authToken, 'secret123'),
+  orderArgs.status('pending')
+);
+
+namedUpdateInventory(
+  withAuthToken(invArgs.authToken, 'secret123'),
+  invArgs.sku('ABC'),
+  invArgs.qty(5)
+);
+```
+
+Each `authToken` creator is tied to its own function’s type but can still be reused via a generic helper. This works even if the rest of the parameters are completely different.
+
+### Partial application without manual merging
+
+Plain objects require manual boilerplate to pre-fill parameters:
+
+```ts
+function fetchOrders(opts: { apiKey?: string; status?: string; page?: number }) { /* ... */ }
+
+const fetchWithKey = (apiKey: string) => (opts: Partial<typeof opts>) =>
+  fetchOrders({ ...opts, apiKey });
+
+fetchWithKey('k1')({ status: 'open' });
+```
+
+Named arguments do it natively:
+
+```ts
+const [args, namedFetch] = createNamedArguments(fetchOrders);
+
+const fetchWithKey = namedFetch.partial(args.apiKey('k1'));
+fetchWithKey(args.status('open')); // Compiler knows 'status' is still required
+```
+
+No merging, no risk of overwriting, no need to manually track which args are missing.
+
+### Targeting deep properties directly
+
+Plain objects make you replace or merge entire branches:
+
+```ts
+function setupApp(cfg: { server: { port: number; ssl: { enabled: boolean } } }) { /* ... */ }
+
+setupApp({
+  server: {
+    port: 80,
+    ssl: { enabled: true }
+  }
+});
+```
+
+Named arguments let you surgically update one property:
+
+```ts
+const [args, namedSetup] = createNamedArguments(setupApp);
+const configArgs = createNestedArgs<{ port: number; ssl: { enabled: boolean } }>('server');
+
+namedSetup(configArgs.ssl.enabled(true)); // Doesn’t touch port
+```
+
+### Preventing silent overwrites
+
+With objects, accidental overwrites happen silently:
+
+```ts
+const defaults = { timeout: 5000 };
+const env = { timeout: 3000 };
+const final = { ...defaults, ...env }; // No warnings
+```
+
+Named arguments catch it at compile time:
+
+```ts
+const [args, namedCall] = createNamedArguments(myFunc);
+
+// Compiler error: 'timeout' already applied
+const withTimeout = namedCall.partial(args.timeout(5000));
+withTimeout.partial(args.timeout(3000));
+```
+
+### Common criticisms — answered
+
+**“It’s more to type.”**
+Yes, `args.foo('x')` is a few extra characters. In return, you get composition, partial application, and compiler safety that’s impossible with plain objects.
+
+**“It’s slower.”**
+There’s a small runtime cost for branding and reconstruction. In almost all app code this is negligible. For tight loops, stick to positional arguments.
+
+**“I can do this with objects and helpers.”**
+You can, but it’s manual and brittle — you’ll be writing your own merge utilities, deep updates, and duplicate-arg guards. This library gives you those patterns baked in and type-checked.
+
+**“Overkill for small projects.”**
+Agreed. Use plain objects for one-off utilities. The library shines in medium-to-large codebases where configuration is layered, reused, or refactored often.
+
+### When to use each
+
+Use **plain objects** when:
+
+* The function is small, local, and used in one or two places
+* Performance is critical and every allocation matters
+* You want zero dependencies and zero new concepts
+
+Use **named arguments** when:
+
+* You compose arguments across functions without shared types
+* You need type-safe partial application
+* You layer defaults, overrides, and runtime values
+* You want to update deep properties without manual merging
+* You want compiler enforcement against duplicates or missing args
+
+### TL;DR
+
+Plain object parameters are great for simple, one-off calls.
+`createNamedArguments` turns arguments into reusable, composable, type-safe primitives — unlocking safer partial application, cross-function sharing, layered configuration, and nested updates without coupling APIs or writing merge-heavy boilerplate.
+
 
 ## 💡 Why This Matters
 

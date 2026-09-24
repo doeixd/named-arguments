@@ -54,5 +54,47 @@
   "author": "Patrick Glenn",
   "publishConfig": {
     "access": "public"
+  },
+  "types": "./dist/types/index.d.ts",
+  "main": "./dist/cjs/production/index.js",
+  "module": "./dist/esm/production/index.js",
+  "exports": {
+    ".": {
+      "development": {
+        "require": "./dist/cjs/development/index.js",
+        "import": "./dist/esm/development/index.js"
+      },
+      "require": "./dist/cjs/production/index.js",
+      "import": "./dist/esm/production/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./flat": {
+      "development": {
+        "require": "./dist/cjs/development/flat.js",
+        "import": "./dist/esm/development/flat.js"
+      },
+      "require": "./dist/cjs/production/flat.js",
+      "import": "./dist/esm/production/flat.js",
+      "types": "./dist/types/flat.d.ts"
+    },
+    "./mapped": {
+      "development": {
+        "require": "./dist/cjs/development/mapped.js",
+        "import": "./dist/esm/development/mapped.js"
+      },
+      "require": "./dist/cjs/production/mapped.js",
+      "import": "./dist/esm/production/mapped.js",
+      "types": "./dist/types/mapped.d.ts"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "flat": [
+        "./dist/types/flat.d.ts"
+      ],
+      "mapped": [
+        "./dist/types/mapped.d.ts"
+      ]
+    }
   }
 }

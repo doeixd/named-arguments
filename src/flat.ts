@@ -38,7 +38,7 @@ export type DeepReadonly<T> = T extends
   | undefined
   | Function
   ? T
-  : T extends ReadonlyArray<infer E> // Check ReadonlyArray first (includes tuples)
+  : T extends ReadonlyArray<unknown> // Check ReadonlyArray first (includes tuples)
   ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
   : T extends Array<infer E> // Check mutable array
   ? Readonly<Array<DeepReadonly<E>>>

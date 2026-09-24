@@ -24,32 +24,6 @@ import {
   isBrandedArg,
 } from './named_args'; // Adjust path as needed
 
-// --- Helper: setValueByPath (Example implementation if not imported) ---
-/**
- * @internal Helper to set a value in a nested object based on a path.
- * Creates intermediate objects if they don't exist.
- */
-function setValueByPath(
-  obj: Record<string, any>,
-  path: string,
-  value: any,
-): void {
-  const keys = path.split('.');
-  let current = obj;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    if (
-      current[key] === undefined ||
-      typeof current[key] !== 'object' ||
-      current[key] === null
-    ) {
-      current[key] = {};
-    }
-    current = current[key];
-  }
-  current[keys[keys.length - 1]] = value;
-}
-
 // --- Core Helper Types (Needed for this module's logic) ---
 
 /**
@@ -59,7 +33,7 @@ function setValueByPath(
 export type DeepReadonly<T> = T extends
   | string | number | boolean | symbol | bigint | null | undefined | Function
   ? T
-  : T extends ReadonlyArray<infer E>
+  : T extends ReadonlyArray<unknown>
   ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
   : T extends Array<infer E>
   ? Readonly<Array<DeepReadonly<E>>>
@@ -142,19 +116,6 @@ type ExtractMapKey<Arg, Spec extends ArgMapSpecification> =
         : never // Should be unreachable
       : never // Brand wasn't ArgumentTargetPath
     : never; // Arg wasn't BrandedArg
-
-/** @internal Utility type to filter 'never' types from a tuple. */
-type FilterNever<T extends readonly any[]> = T extends readonly [infer Head, ...infer Tail]
-  ? Head extends never
-    ? FilterNever<Tail>
-    : readonly [Head, ...FilterNever<Tail>]
-  : readonly [];
-
-/** @internal Extracts all *valid* OutputArgNames from a tuple of Mapped BrandedArgs. */
-type ExtractMapKeys<Args extends readonly any[], Spec extends ArgMapSpecification> =
-  FilterNever<{
-    [I in keyof Args]: ExtractMapKey<Args[I], Spec>;
-  }>;
 
 /** @internal Recursive helper to check if type K exists in tuple T */
 type IsKeyInTuple<K, T extends readonly any[]> =

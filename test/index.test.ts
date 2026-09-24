@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   createNamedArguments,
+  createNestedArgs,
   createConfigurableFunction,
   parseFunctionArguments,
   splitArguments,
@@ -15,6 +16,26 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
 
 describe('Core Functionality', () => {
   describe('createNamedArguments', () => {
+    it('retains values across successive partial calls', () => {
+      const add = (a: number, b: number, c: number) => a + b + c;
+      const [args, namedAdd] = createNamedArguments<typeof add, { a: number; b: number; c: number }>(add);
+
+      const addA = namedAdd.partial(args.a(10));
+      const addAB = addA.partial(args.b(20));
+      expect(addAB(args.c(3))).toBe(33);
+      expect(addA(args.b(5), args.c(1))).toBe(16);
+    });
+
+    it('builds first-level and deep object properties', () => {
+      const configure = (options: { timeout: number; server: { port: number; ssl: { enabled: boolean } } }) => options;
+      type Options = Parameters<typeof configure>[0];
+      const [args, namedConfigure] = createNamedArguments<typeof configure, { options: Options }>(configure);
+      const deep = createNestedArgs<Options>('options');
+
+      expect(namedConfigure(args.options.timeout(5000), deep.server.port(8080), deep.server.ssl.enabled(true)))
+        .toEqual({ timeout: 5000, server: { port: 8080, ssl: { enabled: true } } });
+    });
+
     it('should create named arguments for a simple function', () => {
       function greet(name: string, age: number) {
         return `Hello, ${name}! You are ${age} years old.`;
@@ -44,7 +65,9 @@ describe('Core Functionality', () => {
           : `Hello, ${name}!`;
       }
 
-      const [args, namedGreet] = createNamedArguments<{name: string, age?: number}, typeof greet>(greet);
+      const [args, namedGreet] = createNamedArguments<{name: string, age?: number}, typeof greet>(greet, [
+        { name: 'name', required: true }, { name: 'age', required: false }
+      ]);
       
       expect(namedGreet(args.name('Charlie'))).toBe('Hello, Charlie!');
       expect(namedGreet(args.name('David'), args.age(40))).toBe('Hello, David! You are 40 years old.');
@@ -348,12 +371,7 @@ describe('Edge Cases and Performance', () => {
     expect(end - start).toBeLessThan(100); // Should take less than 100ms
     
     // Check that we can call it with parameters in any order
-    const result = namedFunc(
-      args.p5(5),
-      args.p0(0),
-      args.p10(10),
-      args.p1(1)
-    );
+    const result = namedFunc(...[...Array(20)].map((_, i) => args[`p${19 - i}`](19 - i)));
     // @ts-expect-error 
     expect(result[0]).toBe(0);
     // @ts-expect-error 

@@ -58,7 +58,7 @@ export type ReturnType<F extends (...args: any[]) => any> =
 export type GetParameterName<
   F extends (...args: any[]) => any,
   Index extends keyof Parameters<F>
-> = keyof ArgumentMap<F>;
+> = Index extends keyof Parameters<F> ? keyof ArgumentMap<F> : never;
 
 /**
  * Utility type to remove specific indices from a tuple
@@ -74,7 +74,7 @@ export type RemoveIndices<
  * Maps a function's parameters to a record by name
  */
 export type ArgumentMap<F extends (...args: any[]) => any> = {
-  [K in keyof FunctionParameterNames<F>]: Parameters<F>[FunctionParameterIndices<F>[K]]
+  [K in keyof FunctionParameterNames<F>]: Parameters<F>[number]
 };
 
 /**
@@ -127,17 +127,17 @@ export interface BrandedFunction<F extends (...args: any[]) => any> {
  * Maps function parameter indices to their names
  * This is used for type mapping and is populated during runtime
  */
-export type FunctionParameterIndices<F> = {
+export type FunctionParameterIndices<F> = F extends unknown ? {
   [name: string]: number;
-};
+} : never;
 
 /**
  * Maps function parameter names to their indices
  * This is used for type mapping and is populated during runtime
  */
-export type FunctionParameterNames<F> = {
+export type FunctionParameterNames<F> = F extends unknown ? {
   [index: number]: string;
-};
+} : never;
 
 /**
  * Argument information interface
@@ -759,7 +759,7 @@ export type RemoveConfiguredArgs<
 /**
  * Maps parameter index to its name (conceptual - determined at runtime)
  */
-export type ParameterNameAtIndex<Params, Index extends keyof Params> = keyof Params;
+export type ParameterNameAtIndex<Params, Index extends keyof Params> = Index extends keyof Params ? keyof Params : never;
 
 /**
  * Parses function arguments from a function string
@@ -768,8 +768,7 @@ export type ParameterNameAtIndex<Params, Index extends keyof Params> = keyof Par
  */
 export function parseFunctionArguments(functionString: string): ArgumentInfo[] {
   // Extract the argument string from the function
-  const argRegex = /(?:function\s*\w*|\(\s*|\b)\s*\(([^)]*)\)/;
-  const match = functionString.match(argRegex);
+  const match = functionString.match(/^[^(]*\(([^)]*)\)/);
   
   if (!match) {
     throw new Error("Invalid function string: couldn't extract parameters");
@@ -816,8 +815,8 @@ export function splitArguments(argsString: string): string[] {
     
     // Handle parentheses depth
     if (!inString) {
-      if (char === '(') depth++;
-      if (char === ')') depth--;
+      if ('([{'.includes(char)) depth++;
+      if (')]}'.includes(char)) depth--;
     }
     
     // Split on commas at depth 0 and not in strings
@@ -883,6 +882,17 @@ export function parseArgument(arg: string, index: number): ArgumentInfo {
  * @returns The result of the evaluation
  */
 export function safeEval(str: string): unknown {
+  // Only literal arithmetic, arrays, and plain object literals are accepted.
+  // Remove quoted strings and object keys before checking for executable syntax.
+  const syntax = str
+    .replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '""')
+    .replace(/\b[A-Za-z_$][\w$]*(?=\s*:)/g, '');
+  const withoutLiterals = syntax.replace(/\b(?:true|false|null|undefined)\b/g, '');
+  if (!/^[\s\d+\-*/().,'"\[\]{}:]*$/.test(withoutLiterals) ||
+      /(?:\]|["']|\))\s*[([]/.test(syntax) ||
+      /\.(?!\d)/.test(syntax)) {
+    return str;
+  }
   // Define allowed constructors and objects
   const allowList = [
     'Object', 'Array', 'String', 'Number', 'Boolean', 

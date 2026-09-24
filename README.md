@@ -406,6 +406,8 @@ namedGreet(args.name("Galaxy")); // Output uses "Hello"
 
 Provide an explicit `ParameterInfo[]` array to `createNamedArguments` or `createMappedNamedArguments` for precise control over `required` status and `defaultValue` handling, improving type safety and runtime checks. Inference via `toString()` is less reliable.
 
+TypeScript types are erased at runtime. The `A` type parameter checks accessor use during compilation, but it cannot supply parameter names or tell the runtime which parameters are optional. Without metadata, names are inferred from `func.toString()`, which can change after transpilation or minification. Supply metadata when names, optional parameters, or defaults must be reliable.
+
 ```typescript
 const [args, func] = createNamedArguments(myFunc, [
   { name: 'id', required: true },

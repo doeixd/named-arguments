@@ -300,11 +300,11 @@ export function withFlattening<
         if (typeof flatName === 'string' && (flatName as unknown as string).trim() !== '') {
           // Check for potential name collisions on the args object before assigning
           if (flatName in newArgs) {
-            const message = `[withFlattening] Flattened name "${flatName}" (from "${paramName}.${sourcePath}") conflicts with an existing argument accessor.`;
+            const message = `[withFlattening] Flattened name "${flatName}" conflicts with an existing argument accessor (from "${paramName}.${sourcePath}").`;
             if (collisionPolicy === 'error') {
               // Throw an error as configured
               throw new Error(
-                `${message} Aborting creation due to 'error' collision policy.`,
+                `${message} Aborting due to 'error' collision policy.`,
               );
             } else {
               // Log a warning (default behavior)

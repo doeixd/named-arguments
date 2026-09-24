@@ -318,7 +318,7 @@ describe('withFlattening Utility', () => {
     expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid or empty flat name provided for source path "isAdmin"'));
 
     // Assert Structure (invalid ones skipped, valid one exists)
-    expect(args).not.toHaveProperty('');
+    expect(Object.hasOwn(args, '')).toBe(false);
     expect(args).not.toHaveProperty('null');
     expect(args).toHaveProperty(' userActive '); // Accessor created
     expect(typeof args[' userActive ']).toBe('function');

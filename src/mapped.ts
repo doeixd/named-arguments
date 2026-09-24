@@ -276,6 +276,7 @@ function createMappedBrandedFunction_internal<
   paramInfo: Readonly<ParameterInfo[]>,
   initialAppliedMapKeys: AppliedMapKeys,
   initialCoreBrandedFunc: CoreBrandedFunction<F>, // The *internal* state holder
+  appliedArgs: BrandedArg[] = [],
   // Return type uses the broader array type to avoid constraint errors
 ): MappedBrandedFunction<F, A, Spec, AppliedMapKeys> {
 
@@ -286,9 +287,7 @@ function createMappedBrandedFunction_internal<
     // --- Logic for state transition ---
     const coreArgsToApply = filterBrandedArgs_runtime(args);
     // Assertion needed as core partial sig differs from wrapper sig
-    const nextCoreBrandedFunc = initialCoreBrandedFunc.partial(
-      ...(coreArgsToApply as any),
-    ) as CoreBrandedFunction<F>;
+    const nextCoreBrandedFunc = initialCoreBrandedFunc;
     const newAppliedMapKeysRuntime = extractMapKeys_runtime(coreArgsToApply, argMapSpec);
     // Calculate the runtime array of unique keys for the *next* state
     const uniqueAppliedMapKeys = [
@@ -303,6 +302,7 @@ function createMappedBrandedFunction_internal<
       paramInfo,
       uniqueAppliedMapKeys as readonly (keyof Spec)[], // Cast runtime array
       nextCoreBrandedFunc,
+      [...appliedArgs, ...coreArgsToApply],
     );
   };
 
@@ -314,9 +314,7 @@ function createMappedBrandedFunction_internal<
     ): MappedBrandedFunction<F, A, Spec, readonly (keyof Spec)[]> => { // Return broader type
       // --- Direct implementation for .partial (mirrors mappedFunc) ---
       const coreArgsToApply = filterBrandedArgs_runtime(args);
-      const nextCoreBrandedFunc = initialCoreBrandedFunc.partial(
-        ...(coreArgsToApply as any),
-      ) as CoreBrandedFunction<F>;
+      const nextCoreBrandedFunc = initialCoreBrandedFunc;
       const newAppliedMapKeysRuntime = extractMapKeys_runtime(coreArgsToApply, argMapSpec);
       const uniqueAppliedMapKeys = [
         ...new Set([...initialAppliedMapKeys, ...newAppliedMapKeysRuntime]),
@@ -329,6 +327,7 @@ function createMappedBrandedFunction_internal<
         paramInfo,
         uniqueAppliedMapKeys as readonly (keyof Spec)[], // Cast runtime array
         nextCoreBrandedFunc,
+        [...appliedArgs, ...coreArgsToApply],
       );
     },
 
@@ -337,7 +336,11 @@ function createMappedBrandedFunction_internal<
        // Execute the current internal core function state
       try {
         // Assertion needed as core func might technically return partial
-        return initialCoreBrandedFunc() as CoreReturnType<F>;
+        const result = initialCoreBrandedFunc(...appliedArgs);
+        if (typeof result === 'function' && 'remainingArgs' in result) {
+          throw new Error(`Missing required argument(s): ${(result as CoreBrandedFunction<F>).remainingArgs().join(', ')}`);
+        }
+        return result as CoreReturnType<F>;
       } catch (error) {
         console.error(
           'Execution failed. Ensure all required arguments were provided via the mapped args.',
@@ -413,7 +416,7 @@ export function createMappedNamedArguments<
         args[outputArgName] = createNamedArg<any, typeof targetPath>(targetPath);
       } else {
         console.warn(
-          `[createMappedNamedArguments] Invalid target path for "${outputArgName}". Skipping.`,
+          `[createMappedNamedArguments] Invalid target path found for argument "${outputArgName}". Skipping.`,
         );
       }
     }

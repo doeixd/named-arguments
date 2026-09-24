@@ -67,7 +67,10 @@ describe('createMappedNamedArguments', () => {
       typeof simpleTarget,
       SimpleTargetArgs, // Explicit A
       typeof spec
-    >(spec, simpleTarget);
+    >(spec, simpleTarget, [
+      { name: 'name', required: true }, { name: 'age', required: true },
+      { name: 'active', required: false }
+    ]);
 
     // Assert
     expect(Object.keys(args)).toEqual(['userName', 'userAge']);
@@ -275,7 +278,10 @@ describe('createMappedNamedArguments', () => {
       typeof simpleTarget,
       SimpleTargetArgs,
       typeof spec
-    >(spec, simpleTarget);
+    >(spec, simpleTarget, [
+      { name: 'name', required: true }, { name: 'age', required: true },
+      { name: 'active', required: false }
+    ]);
 
     // Act
     const partial1 = func(args.name('Carol'));

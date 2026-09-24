@@ -50,7 +50,7 @@
  */
 export function createObjectPropertyArgs<T extends Record<string, any>>(
   paramName: string
-): Record<string, NamedArg<any>> {
+): Record<string, NamedArg<T[keyof T]>> {
   const result: Record<string, any> = {};
   
   // Create a proxy for simple property access only (no deep nesting)
@@ -225,7 +225,7 @@ export type FlattenedArgsType<
   : {};
 
 /** Helper type to make complex intersections readable */
-type Prettify<T> = {
+export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
@@ -599,27 +599,12 @@ export function createNamedArguments<
     const paramName = param.name;
     if (!paramName) continue;
 
-    const paramType = ({} as A)[paramName];
-    if (paramType && typeof paramType === 'object' && !param.isRest) {
-      // Create a callable object for nested properties
-      const nestedObject: any = {};
-      
-      // Add property accessors
-      for (const prop in paramType) {
-        nestedObject[prop] = createNamedArg(`${paramName}.${prop}`);
-      }
-      
-      // Make the object itself callable
-      const callableNestedObject = Object.assign(
-        (value: any) => ({ [BRAND_SYMBOL]: { name: paramName, value } } as BrandedArg<any, string>),
-        nestedObject
-      );
-      
-      // Add it to argument types
-      (argTypes as any)[paramName] = callableNestedObject;
-    } else {
-      (argTypes as any)[paramName] = createNamedArg(paramName);
-    }
+    // TypeScript's A is erased at runtime. A callable proxy generates property
+    // accessors lazily, so both args.options(value) and args.options.timeout(value)
+    // work without trying to inspect A.
+    (argTypes as any)[paramName] = param.isRest
+      ? (...values: any[]) => createNamedArg(paramName)(values.length === 1 && Array.isArray(values[0]) ? values[0] : values)
+      : createNestedAccessor(paramName);
   }
 
   // if (config.flattenAs) {
@@ -640,15 +625,56 @@ export function createNamedArg<T, N extends string>(name: N): NamedArg<T, N> {
   return (value: T) => ({ [BRAND_SYMBOL]: { name, value } } as BrandedArg<T, N>);
 }
 
+function createNestedAccessor(path: string): any {
+  const accessor = (value: any) => ({ [BRAND_SYMBOL]: { name: path, value } });
+  return new Proxy(accessor, {
+    get(target, key) {
+      if (typeof key === 'string' && !(key in Function.prototype)) {
+        return createNestedAccessor(`${path}.${key}`);
+      }
+      return Reflect.get(target, key);
+    }
+  });
+}
+
 /** Infers parameter information from a function's signature */
 export function inferParameters(func: Function): ParameterInfo[] {
-  const paramStr = func.toString().match(/(?:function\s*\w*|\(\s*|\b)\s*\(([^)]*)\)/)?.[1] || '';
-  const paramNames = paramStr.split(',').map(p => p.trim().split(/[?=]/)[0].replace(/^\{|\}$/g, ''));
-  return paramNames.map(name => ({
-    name,
-    required: !func.toString().includes(`${name}?`) && !func.toString().includes(`${name} =`),
-    isRest: name.startsWith('...')
-  })).filter(p => p.name);
+  const source = func.toString();
+  const start = source.indexOf('(');
+  if (start < 0) {
+    const single = source.match(/^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*=>/);
+    return single ? [{ name: single[1], required: true }] : [];
+  }
+  let depth = 0;
+  let end = start;
+  for (; end < source.length; end++) {
+    if (source[end] === '(') depth++;
+    if (source[end] === ')' && --depth === 0) break;
+  }
+  const raw = source.slice(start + 1, end);
+  return splitParameterList(raw).map(part => {
+    const isRest = part.trim().startsWith('...');
+    const withoutRest = part.trim().replace(/^\.\.\./, '');
+    const name = withoutRest.startsWith('{')
+      ? withoutRest.match(/^\{\s*([A-Za-z_$][\w$]*)/)?.[1] || ''
+      : withoutRest.split(/[?=:]/)[0].trim();
+    return { name, isRest, required: !isRest && !withoutRest.includes('=') && !withoutRest.includes('?') };
+  }).filter(p => p.name);
+}
+
+function splitParameterList(raw: string): string[] {
+  const parts: string[] = [];
+  let start = 0, depth = 0, quote = '';
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (quote) { if (ch === quote && raw[i - 1] !== '\\') quote = ''; continue; }
+    if ('\'"`'.includes(ch)) { quote = ch; continue; }
+    if ('({['.includes(ch)) depth++;
+    if (')}]'.includes(ch)) depth--;
+    if (ch === ',' && depth === 0) { parts.push(raw.slice(start, i).trim()); start = i + 1; }
+  }
+  if (raw.slice(start).trim()) parts.push(raw.slice(start).trim());
+  return parts;
 }
 
 /**
@@ -666,17 +692,21 @@ export function inferParameters(func: Function): ParameterInfo[] {
 export function createBrandedFunction<F extends (...args: any[]) => any>(
   func: F,
   paramInfo: ParameterInfo[] | Readonly<ParameterInfo[]>,
-  appliedParams: string[] = []
+  appliedParams: string[] = [],
+  presetValues: Record<string, any> = {}
 ): BrandedFunction<F> {
-  // Create appliedArgsMap to track argument values by parameter name
-  const appliedArgsMap: Record<string, any> = {};
+  const appliedArgsMap = presetValues;
 
   const brandedFunc = function(this: any, ...brandedArgs: BrandedArg[]): any {
+    if (brandedArgs.length === 0 && appliedParams.length > 0 &&
+        paramInfo.some(p => p.required && !p.isRest &&
+          !appliedParams.some(name => name === p.name || name.startsWith(`${p.name}.`)))) {
+      throw new Error(`Missing required argument(s): ${paramInfo.filter(p => p.required && !p.isRest &&
+        !appliedParams.some(name => name === p.name || name.startsWith(`${p.name}.`))).map(p => p.name).join(', ')}`);
+    }
+    const values: Record<string, any> = { ...presetValues };
     const args: any[] = new Array(paramInfo.length).fill(undefined);
     const newAppliedParams = [...appliedParams];
-    const appliedParamIndices = new Set<number>();
-    let restArgs: any[] = [];
-    const objectProps: Record<string, Record<string, any>> = {};
 
     // Set the args property for reApply to use
     (brandedFunc as any)._args = args;
@@ -687,65 +717,24 @@ export function createBrandedFunction<F extends (...args: any[]) => any>(
       
       const { name, value } = arg[BRAND_SYMBOL];
       
-      // Skip this arg if the parameter has already been applied
-      if (name.includes('.')) {
-        const [paramName] = name.split('.', 2);
-        if (appliedParams.includes(paramName)) {
-          console.warn(`Parameter ${paramName} has already been applied, ignoring ${name}`);
-          continue;
-        }
-      } else if (appliedParams.includes(name)) {
+      if (appliedParams.includes(name)) {
         console.warn(`Parameter ${name} has already been applied, ignoring`);
         continue;
       }
-
-      // Handle nested properties (param.prop)
-      if (name.includes('.')) {
-        const [paramName, propName] = name.split('.', 2);
-        const paramIndex = paramInfo.findIndex(p => p.name === paramName);
-        
-        if (paramIndex !== -1) {
-          objectProps[paramName] = objectProps[paramName] || {};
-          objectProps[paramName][propName] = value;
-          appliedParamIndices.add(paramIndex);
-          if (!newAppliedParams.includes(paramName)) {
-            newAppliedParams.push(paramName);
-          }
-        }
-        continue;
-      }
-
-      // Handle regular arguments
-      const argIndex = paramInfo.findIndex(info => info.name === name);
-      if (argIndex !== -1) {
-        const { isRest } = paramInfo[argIndex];
-        
-        if (isRest) {
-          restArgs = Array.isArray(value) ? [...value] : [value];
-        } else {
-          args[argIndex] = value;
-          appliedParamIndices.add(argIndex);
-          if (!newAppliedParams.includes(name)) {
-            newAppliedParams.push(name);
-          }
-        }
-      }
+      const base = name.split('.')[0];
+      if (!paramInfo.some(p => p.name === base)) continue;
+      values[name] = value;
+      if (!newAppliedParams.includes(name)) newAppliedParams.push(name);
     }
-
-    // Apply object properties to argument objects
-    for (const [paramName, props] of Object.entries(objectProps)) {
-      const paramIndex = paramInfo.findIndex(p => p.name === paramName);
-      if (paramIndex !== -1) {
-        args[paramIndex] = args[paramIndex] || {};
-        Object.assign(args[paramIndex], props);
-      }
-    }
-
-    // Update the applied args map with current values
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] !== undefined && i < paramInfo.length) {
-        appliedArgsMap[paramInfo[i].name] = args[i];
-      }
+    for (const [name, value] of Object.entries(values)) {
+      const [base, ...path] = name.split('.');
+      const index = paramInfo.findIndex(p => p.name === base);
+      if (index < 0) continue;
+      if (path.length === 0) { args[index] = value; continue; }
+      args[index] = args[index] || {};
+      let target = args[index];
+      for (const key of path.slice(0, -1)) target = target[key] ||= {};
+      target[path[path.length - 1]] = value;
     }
 
     // Check if all required args are provided
@@ -754,11 +743,11 @@ export function createBrandedFunction<F extends (...args: any[]) => any>(
       .map(p => p.name);
       
     const requiredCount = requiredParams.length;
-    const appliedRequiredCount = requiredParams.filter(p => newAppliedParams.includes(p)).length;
+    const appliedRequiredCount = requiredParams.filter(p => newAppliedParams.some(n => n === p || n.startsWith(`${p}.`))).length;
     
     // If not all required args provided, return a partial function
     if (appliedRequiredCount < requiredCount) {
-      return createBrandedFunction(func, paramInfo, newAppliedParams);
+      return createBrandedFunction(func, paramInfo, newAppliedParams, values);
     }
 
     // Apply default values
@@ -768,7 +757,12 @@ export function createBrandedFunction<F extends (...args: any[]) => any>(
     checkMissingArgs(args, [...paramInfo]);
     
     // Call the wrapped function with all args
-    return func.apply(this, [...args, ...restArgs]);
+    const restIndex = paramInfo.findIndex(p => p.isRest);
+    if (restIndex >= 0) {
+      const rest = args.splice(restIndex, 1)[0];
+      return func.apply(this, [...args, ...(Array.isArray(rest) ? rest : rest === undefined ? [] : [rest])]);
+    }
+    return func.apply(this, args);
   };
 
   // Attach metadata and methods
@@ -776,7 +770,7 @@ export function createBrandedFunction<F extends (...args: any[]) => any>(
     _originalFunction: func,
     _parameterInfo: paramInfo,
     _appliedNames: appliedParams,
-    _appliedArgs: appliedArgsMap, // Add the appliedArgs map
+    _appliedArgs: buildAppliedObject(appliedArgsMap),
     
     
     partial: function<Args extends readonly any[]>(...args: FilterBrandedArgs<Args, typeof appliedParams>): BrandedFunction<F, [...typeof appliedParams, ...ExtractParameterNames<Args>]> {
@@ -868,6 +862,17 @@ export function createBrandedFunction<F extends (...args: any[]) => any>(
   });
 
   return result as unknown as BrandedFunction<F, typeof appliedParams>;
+}
+
+function buildAppliedObject(values: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [name, value] of Object.entries(values)) {
+    const path = name.split('.');
+    let target = result;
+    for (const part of path.slice(0, -1)) target = target[part] ||= {};
+    target[path[path.length - 1]] = value;
+  }
+  return result;
 }
 
 /** Applies default values to arguments */
@@ -1002,15 +1007,16 @@ export function createConfigurableFunction<
     setupFn(wrappedArgs);
     
     // If no preset args, return the original function
-    if (presetArgs.length === 0) {
-      return (...remainingArgs: BrandedArg[]) => brandedFunc(...remainingArgs);
-    }
-    
-    // Create a new branded function with the preset args
-    const partialFunc = brandedFunc(...presetArgs) as BrandedFunction<F>;
-    
-    // Return a function that applies the remaining args
-    return (...remainingArgs: BrandedArg[]) => partialFunc(...remainingArgs);
+    const paramNames = brandedFunc._parameterInfo.filter(p => !p.isRest).map(p => p.name);
+    const configured = new Set(presetArgs.map(arg => arg[BRAND_SYMBOL].name.split('.')[0]));
+    const remainingNames = paramNames.filter(name => !configured.has(name));
+    return (...remainingArgs: any[]) => {
+      let position = 0;
+      const supplied = remainingArgs.map(value => isBrandedArg(value)
+        ? value
+        : createNamedArg(remainingNames[position++])(value));
+      return brandedFunc(...presetArgs, ...supplied);
+    };
   };
 }
 
@@ -1143,17 +1149,6 @@ export function createBuilder<F extends (...args: any[]) => any>(
   brandedFunc: BrandedFunction<F>
 ): Builder<F> {
   return new Builder<F>(brandedFunc);
-}
-
-// Support CommonJS imports
-if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-  module.exports = {
-    createNamedArguments,
-    createConfigurableFunction,
-    createBuilder,
-    isBrandedArg,
-    isBrandedFunction,
-  };
 }
 
 /**

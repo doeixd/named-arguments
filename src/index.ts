@@ -78,6 +78,7 @@
 
 export * from './named_args';
 export * from './utils'
+export { parseFunctionArguments, splitArguments, parseArgument, safeEval } from './named_arguments';
 
 
 

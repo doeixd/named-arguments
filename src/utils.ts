@@ -14,9 +14,7 @@
 
 import {
     BrandedArg,
-    BrandedFunction,
     NamedArg,
-    isBrandedArg,
     BRAND_SYMBOL
   } from './named_args';
   
@@ -318,61 +316,25 @@ import {
    * );
    * ```
    */
-  export interface ArgumentPipeline<T, U> {
-    map<V>(fn: (value: T) => V): ArgumentPipeline<V, U>;
-    filter(predicate: (value: T) => boolean, fallback: T): ArgumentPipeline<T, U>;
-    apply(value: T): BrandedArg<U>;
+  export interface ArgumentPipeline<Input, Output, Current = Input> {
+    (value: Input): BrandedArg<Output>;
+    map<V>(fn: (value: Current) => V): ArgumentPipeline<Input, Output, V>;
+    filter(predicate: (value: Current) => boolean, fallback: Current): ArgumentPipeline<Input, Output, Current>;
+    apply(value: Input): BrandedArg<Output>;
   }
   
   export function pipeline<T, U>(argCreator: NamedArg<U>): ArgumentPipeline<T, U> {
-    // Start with an identity transformation
-    let transformations: ((value: any) => any)[] = [(value: T) => value];
-    
-    // Create the pipeline object
-    const pipelineObj: ArgumentPipeline<T, U> = {
-      // Add a transformation to the pipeline
-      map<V>(fn: (value: T) => V): ArgumentPipeline<V, U> {
-        // Create a new transformation that applies the previous ones and then this one
-        const newTransformations = [...transformations, fn];
-        
-        // Create a new pipeline with the updated transformations
-        const newPipeline = pipeline(argCreator) as any;
-        newPipeline.transformations = newTransformations;
-        
-        return newPipeline;
-      },
-      
-      // Add a filter to the pipeline
-      filter(predicate: (value: T) => boolean, fallback: T): ArgumentPipeline<T, U> {
-        // Create a new transformation that applies the filter
-        const filterFn = (value: T) => predicate(value) ? value : fallback;
-        
-        // Add it to the pipeline
-        return pipelineObj.map(filterFn);
-      },
-      
-      // Apply the pipeline to a value
-      apply(value: T): BrandedArg<U> {
-        // Apply all transformations in sequence
-        let result = value;
-        for (const transform of transformations) {
-          result = transform(result);
-        }
-        
-        // Create the branded argument with the final result
-        return argCreator(result as unknown as U);
-      }
+    const build = (steps: ((value: any) => any)[]): ArgumentPipeline<any, U> => {
+      const apply = (value: any): BrandedArg<U> =>
+        argCreator(steps.reduce((current, step) => step(current), value));
+      return Object.assign(apply, {
+        apply,
+        map: (fn: (value: any) => any) => build([...steps, fn]),
+        filter: (predicate: (value: any) => boolean, fallback: any) =>
+          build([...steps, (value: any) => predicate(value) ? value : fallback])
+      });
     };
-    
-    // Add the transformations array as a property
-    (pipelineObj as any).transformations = transformations;
-    
-    // Make the pipeline callable
-    return new Proxy(pipelineObj, {
-      apply(target, thisArg, args) {
-        return target.apply(args[0]);
-      }
-    }) as ArgumentPipeline<T, U> & ((value: T) => BrandedArg<U>);
+    return build([]) as ArgumentPipeline<T, U>;
   }
   
   /**

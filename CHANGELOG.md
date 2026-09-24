@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.6](https://github.com/doeixd/named-arguments/compare/v0.0.5...v0.0.6) (2026-09-24)
+
+
+### Bug Fixes
+
+* include mapped and flat package entry points ([1e64de1](https://github.com/doeixd/named-arguments/commit/1e64de17ea4d9fbbbd3497e5f2498afe53086194))
+
 ### [0.0.5](https://github.com/doeixd/named-arguments/compare/v0.0.4...v0.0.5) (2026-09-24)
 
 
